@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>House Muse — AI Interior Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Playfair+Display:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --obsidian: #0D0B09;
+    --deep-noir: #130F0C;
+    --noir: #1C1713;
+    --charcoal: #2A2320;
+    --velvet-brown: #3D2E26;
+    --cream: #F2EBD9;
+    --parchment: #EAE0C8;
+    --warm-white: #FAF7F0;
+    --champagne: #E8D5A3;
+    --gold: #C9A84C;
+    --bright-gold: #E2B94B;
+    --antique-gold: #A8863A;
+    --rose-gold: #C4856A;
+    --copper: #B87333;
+    --muted-emerald: #3D5E4A;
+    --sage: #7A9E7E;
+    --burgundy: #6B2737;
+    --mauve: #8C5F6E;
+    --ivory: #F5EFE0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--obsidian);color:var(--cream);font-family:'DM Sans',sans-serif;font-weight:300;overflow-x:hidden;cursor:none;}
+
+  /* CURSOR */
+  .cursor{width:9px;height:9px;background:var(--bright-gold);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9999;transition:transform 0.12s ease;mix-blend-mode:difference;}
+  .cursor-follower{width:34px;height:34px;border:1px solid rgba(226,185,75,0.4);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9998;transition:all 0.32s cubic-bezier(0.23,1,0.32,1);}
+
+  /* GRAIN */
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");pointer-events:none;z-index:9997;opacity:0.4;}
+
+  /* NAV */
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:26px 64px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(16px);background:rgba(13,11,9,0.75);border-bottom:1px solid rgba(201,168,76,0.1);}
+  .logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:0.18em;background:linear-gradient(135deg,var(--bright-gold),var(--champagne),var(--antique-gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .nav-links{display:flex;gap:40px;list-style:none;}
+  .nav-links a{text-decoration:none;color:rgba(242,235,217,0.5);font-size:11px;letter-spacing:0.22em;text-transform:uppercase;transition:color 0.3s;}
+  .nav-links a:hover{color:var(--gold);}
+  .nav-cta{background:transparent;border:1px solid rgba(201,168,76,0.45);color:var(--gold);padding:10px 28px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;cursor:none;transition:all 0.3s;}
+  .nav-cta:hover{background:var(--gold);color:var(--obsidian);}
+
+  /* HERO */
+  .hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative;overflow:hidden;}
+  .hero-left{display:flex;flex-direction:column;justify-content:center;padding:150px 80px 80px;position:relative;z-index:2;}
+  .hero-tag{display:inline-flex;align-items:center;gap:12px;font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:var(--gold);margin-bottom:44px;}
+  .hero-tag::before{content:'';display:block;width:32px;height:1px;background:linear-gradient(90deg,var(--antique-gold),var(--bright-gold));}
+  .hero-title{font-family:'Cormorant Garamond',serif;font-size:clamp(50px,5.8vw,86px);font-weight:300;line-height:1.05;margin-bottom:30px;}
+  .hero-title em{font-style:italic;display:block;background:linear-gradient(135deg,var(--rose-gold),var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .hero-sub{font-size:14px;line-height:1.85;max-width:380px;color:rgba(242,235,217,0.47);margin-bottom:52px;}
+  .hero-actions{display:flex;align-items:center;gap:30px;}
+  .btn-primary{background:linear-gradient(135deg,var(--copper),var(--rose-gold),var(--gold));color:var(--obsidian);border:none;padding:18px 46px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;cursor:none;font-weight:500;transition:all 0.4s cubic-bezier(0.23,1,0.32,1);position:relative;overflow:hidden;}
+  .btn-primary::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0.12);transform:translateX(-100%);transition:transform 0.4s ease;}
+  .btn-primary:hover::after{transform:translateX(0);}
+  .btn-primary:hover{letter-spacing:0.28em;}
+  .btn-ghost{background:none;border:none;color:rgba(242,235,217,0.5);font-size:12px;cursor:none;display:flex;align-items:center;gap:9px;transition:color 0.3s;}
+  .btn-ghost:hover{color:var(--cream);}
+  .btn-ghost svg{transition:transform 0.3s;}
+  .btn-ghost:hover svg{transform:translateX(4px);}
+
+  /* MOOD COLLAGE */
+  .hero-right{position:relative;overflow:hidden;}
+  .mood-collage{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);gap:3px;transform:rotate(-2deg) scale(1.12);transform-origin:center;}
+  .mood-cell{overflow:hidden;position:relative;}
+  .room-label{position:absolute;bottom:10px;left:10px;background:rgba(13,11,9,0.75);backdrop-filter:blur(8px);padding:4px 10px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--champagne);border:1px solid rgba(201,168,76,0.2);}
+  .room-1{background:linear-gradient(160deg,#6B4F35 0%,#B8936A 40%,#E2C89A 100%);grid-column:1;grid-row:1/3;}
+  .room-2{background:linear-gradient(200deg,#2D3B2A 0%,#5C7A5E 50%,#A8C4AA 100%);grid-column:2;grid-row:1/2;}
+  .room-3{background:linear-gradient(135deg,#8B3A2A 0%,#C4705A 60%,#E8B090 100%);grid-column:3;grid-row:1/3;}
+  .room-4{background:linear-gradient(160deg,#1A1410 0%,#3D2820 50%,#7A5040 100%);grid-column:2;grid-row:2/3;}
+  .room-5{background:linear-gradient(135deg,#C8B090 0%,#E2D0A8 50%,#F5EFE0 100%);grid-column:1/3;grid-row:3/4;}
+  .room-6{background:linear-gradient(200deg,#1E1218 0%,#4A2030 40%,#8A4060 100%);grid-column:3;grid-row:3/5;}
+  .room-7{background:linear-gradient(160deg,#3D4A35 0%,#6A8060 50%,#A8C090 100%);grid-column:1/2;grid-row:4/5;}
+  .room-8{background:linear-gradient(135deg,#7A6020 0%,#C9A84C 50%,#E8D080 100%);grid-column:2/3;grid-row:4/5;}
+  .mood-overlay{position:absolute;top:0;right:0;bottom:0;width:38%;background:linear-gradient(90deg,transparent,var(--obsidian));z-index:2;}
+
+  /* TICKER */
+  .ticker{background:linear-gradient(90deg,var(--antique-gold),var(--bright-gold),var(--antique-gold));padding:13px 0;overflow:hidden;white-space:nowrap;}
+  .ticker-inner{display:inline-flex;gap:56px;animation:ticker 28s linear infinite;}
+  @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .ticker-item{font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:var(--obsidian);font-weight:500;}
+  .ticker-dot{display:inline-block;width:4px;height:4px;background:rgba(13,11,9,0.35);border-radius:50%;vertical-align:middle;}
+
+  /* STATS */
+  .stats-bar{border-top:1px solid rgba(201,168,76,0.1);border-bottom:1px solid rgba(201,168,76,0.1);padding:34px 80px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,rgba(28,23,19,0.9),rgba(42,35,32,0.6),rgba(28,23,19,0.9));}
+  .stat-item{text-align:center;}
+  .stat-num{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;background:linear-gradient(135deg,var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;line-height:1;}
+  .stat-label{font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:rgba(242,235,217,0.32);margin-top:7px;display:block;}
+  .stat-divider{width:1px;height:52px;background:linear-gradient(to bottom,transparent,rgba(201,168,76,0.18),transparent);}
+
+  /* APP SECTION */
+  .app-section{padding:120px 80px;position:relative;}
+  .app-section::after{content:'';position:absolute;right:80px;top:110px;font-family:'Cormorant Garamond',serif;font-size:220px;font-weight:300;color:rgba(201,168,76,0.022);line-height:1;pointer-events:none;}
+  .section-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:64px;}
+  .section-tag{font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+  .section-title{font-family:'Cormorant Garamond',serif;font-size:clamp(34px,4vw,54px);font-weight:300;line-height:1.1;}
+  .section-title em{font-style:italic;color:var(--rose-gold);}
+  .section-desc{max-width:300px;font-size:13px;line-height:1.85;color:rgba(242,235,217,0.4);}
+
+  /* STEP PROGRESS */
+  .step-progress{display:flex;margin-bottom:52px;border:1px solid rgba(201,168,76,0.1);background:rgba(13,11,9,0.55);overflow:hidden;}
+  .step-pill{flex:1;padding:18px 22px;display:flex;align-items:center;gap:12px;cursor:none;border-right:1px solid rgba(201,168,76,0.08);transition:background 0.4s;}
+  .step-pill:last-child{border-right:none;}
+  .step-pill.active{background:rgba(201,168,76,0.07);}
+  .step-pill.done{background:rgba(201,168,76,0.03);}
+  .step-num{width:28px;height:28px;border-radius:50%;border:1px solid rgba(201,168,76,0.28);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(242,235,217,0.35);flex-shrink:0;transition:all 0.3s;font-family:'Cormorant Garamond',serif;}
+  .step-pill.active .step-num{background:var(--gold);color:var(--obsidian);border-color:var(--gold);font-weight:500;}
+  .step-pill.done .step-num{background:rgba(201,168,76,0.12);color:var(--gold);border-color:rgba(201,168,76,0.35);}
+  .step-label{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(242,235,217,0.3);transition:color 0.3s;}
+  .step-pill.active .step-label{color:var(--champagne);}
+  .step-pill.done .step-label{color:rgba(201,168,76,0.55);}
+
+  /* STEP PANELS */
+  .step-panel{display:none;animation:fadeUp 0.5s ease;}
+  .step-panel.active{display:block;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ROOM TYPE CARDS */
+  .room-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:36px;}
+  .room-type-card{border:1px solid rgba(201,168,76,0.1);background:rgba(13,11,9,0.55);padding:26px 18px;cursor:none;display:flex;flex-direction:column;align-items:center;gap:13px;transition:all 0.35s cubic-bezier(0.23,1,0.32,1);position:relative;overflow:hidden;}
+  .room-type-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(196,133,106,0.07),rgba(201,168,76,0.05));opacity:0;transition:opacity 0.35s;}
+  .room-type-card:hover::before{opacity:1;}
+  .room-type-card:hover{border-color:rgba(201,168,76,0.32);transform:translateY(-3px);}
+  .room-type-card.selected{border-color:var(--gold);background:rgba(201,168,76,0.07);}
+  .room-type-card.selected::before{opacity:1;}
+  .room-icon{font-size:30px;}
+  .room-type-name{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:300;text-align:center;}
+  .room-type-sub{font-size:9px;letter-spacing:0.15em;color:rgba(242,235,217,0.3);text-transform:uppercase;}
+  .room-check{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--bright-gold),var(--antique-gold));display:none;align-items:center;justify-content:center;}
+  .room-type-card.selected .room-check{display:flex;}
+
+  /* ROOM COUNT */
+  .rooms-count-row{display:flex;align-items:center;gap:0;border:1px solid rgba(201,168,76,0.14);overflow:hidden;width:fit-content;}
+  .count-btn{width:50px;height:50px;background:rgba(13,11,9,0.7);border:none;color:var(--champagne);font-size:22px;cursor:none;transition:background 0.3s;display:flex;align-items:center;justify-content:center;}
+  .count-btn:hover{background:rgba(201,168,76,0.1);color:var(--gold);}
+  .count-display{width:80px;height:50px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;background:rgba(201,168,76,0.04);border-left:1px solid rgba(201,168,76,0.08);border-right:1px solid rgba(201,168,76,0.08);background:linear-gradient(135deg,var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+  /* UPLOAD */
+  .upload-area{border:1px solid rgba(201,168,76,0.13);position:relative;overflow:hidden;background:rgba(13,11,9,0.55);transition:all 0.4s ease;min-height:290px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:none;}
+  .upload-area:hover{border-color:rgba(201,168,76,0.38);background:rgba(201,168,76,0.03);}
+  .upload-area.drag-over{border-color:var(--gold);background:rgba(201,168,76,0.07);}
+  .upload-area input[type="file"]{position:absolute;inset:0;opacity:0;cursor:none;width:100%;height:100%;}
+  .upload-icon{width:52px;height:52px;border:1px solid rgba(201,168,76,0.22);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:20px;animation:pulse-ring 2.5s ease infinite;}
+  @keyframes pulse-ring{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,0.22)}50%{box-shadow:0 0 0 14px rgba(201,168,76,0)}}
+  .upload-text{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:300;margin-bottom:8px;}
+  .upload-sub{font-size:11px;color:rgba(242,235,217,0.28);letter-spacing:0.1em;}
+  .upload-preview{display:none;width:100%;height:100%;position:absolute;inset:0;}
+  .upload-preview img{width:100%;height:100%;object-fit:cover;}
+  .upload-preview-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(13,11,9,0.92) 0%,transparent 55%);display:flex;align-items:flex-end;padding:24px;}
+
+  /* DIMS */
+  .dims-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;}
+  .dim-input-wrap{position:relative;}
+  .dim-label{font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(242,235,217,0.32);margin-bottom:9px;display:block;}
+  .dim-input{width:100%;background:rgba(13,11,9,0.65);border:1px solid rgba(201,168,76,0.16);padding:16px 20px;color:var(--cream);font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;outline:none;transition:all 0.3s;cursor:none;}
+  .dim-input:focus{border-color:var(--gold);background:rgba(201,168,76,0.04);}
+  .dim-input::placeholder{color:rgba(242,235,217,0.13);}
+  .dim-unit{position:absolute;right:13px;bottom:18px;font-size:9px;letter-spacing:0.2em;color:rgba(242,235,217,0.22);text-transform:uppercase;}
+
+  /* BUDGET */
+  .budget-section{padding:28px;border:1px solid rgba(201,168,76,0.11);background:linear-gradient(135deg,rgba(13,11,9,0.75),rgba(42,35,32,0.4));position:relative;overflow:hidden;}
+  .budget-section::before{content:'₹';position:absolute;right:14px;top:50%;transform:translateY(-50%);font-family:'Cormorant Garamond',serif;font-size:90px;color:rgba(201,168,76,0.045);font-weight:300;}
+  .budget-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;}
+  .budget-label{font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(242,235,217,0.32);}
+  .budget-value{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;background:linear-gradient(135deg,var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  input[type="range"]{-webkit-appearance:none;width:100%;height:1px;background:rgba(201,168,76,0.16);outline:none;cursor:none;}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--bright-gold),var(--antique-gold));cursor:none;border:3px solid var(--obsidian);box-shadow:0 0 0 1px var(--gold);}
+
+  /* STYLE CHIPS */
+  .style-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .style-chip{padding:10px 18px;border:1px solid rgba(201,168,76,0.16);background:rgba(13,11,9,0.55);color:rgba(242,235,217,0.42);font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.1em;cursor:none;transition:all 0.3s;position:relative;overflow:hidden;}
+  .style-chip::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--copper),var(--rose-gold),var(--gold));opacity:0;transition:opacity 0.3s;}
+  .style-chip.active::before{opacity:1;}
+  .style-chip.active{color:var(--obsidian);border-color:transparent;font-weight:500;}
+  .style-chip span{position:relative;z-index:1;}
+
+  /* FORM */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;}
+  .form-col{display:flex;flex-direction:column;gap:24px;}
+  .group-label{font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(242,235,217,0.32);display:block;margin-bottom:12px;}
+
+  /* NAV BTNS */
+  .step-nav{display:flex;gap:14px;align-items:center;margin-top:38px;flex-wrap:wrap;}
+  .btn-next{background:linear-gradient(135deg,var(--copper),var(--gold));color:var(--obsidian);border:none;padding:15px 38px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;cursor:none;transition:all 0.3s;}
+  .btn-next:hover{letter-spacing:0.26em;}
+  .btn-back{background:transparent;border:1px solid rgba(201,168,76,0.22);color:rgba(242,235,217,0.45);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;cursor:none;transition:all 0.3s;}
+  .btn-back:hover{border-color:rgba(201,168,76,0.48);color:var(--champagne);}
+
+  /* ANALYZE */
+  .analyze-btn{width:100%;padding:22px;background:transparent;border:1px solid rgba(201,168,76,0.32);color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;letter-spacing:0.22em;cursor:none;position:relative;overflow:hidden;transition:all 0.4s ease;}
+  .analyze-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(196,133,106,0.13),rgba(201,168,76,0.1));transform:scaleX(0);transform-origin:left;transition:transform 0.4s cubic-bezier(0.23,1,0.32,1);}
+  .analyze-btn:hover::before{transform:scaleX(1);}
+  .analyze-btn:hover{border-color:var(--gold);letter-spacing:0.3em;}
+  .analyze-btn span{position:relative;z-index:1;}
+
+  /* LOADING */
+  .loading-overlay{display:none;position:fixed;inset:0;background:rgba(13,11,9,0.97);z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:30px;}
+  .loading-overlay.active{display:flex;}
+  .loading-title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;color:var(--cream);}
+  .loading-title em{font-style:italic;background:linear-gradient(135deg,var(--rose-gold),var(--bright-gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .loading-steps{display:flex;flex-direction:column;gap:13px;min-width:340px;}
+  .loading-step{display:flex;align-items:center;gap:13px;opacity:0.22;transition:opacity 0.5s;font-size:13px;letter-spacing:0.08em;color:rgba(242,235,217,0.62);}
+  .loading-step.done{opacity:1;}
+  .step-dot{width:8px;height:8px;border-radius:50%;background:rgba(201,168,76,0.22);flex-shrink:0;transition:background 0.5s;}
+  .loading-step.done .step-dot{background:var(--bright-gold);box-shadow:0 0 8px rgba(226,185,75,0.45);}
+  .loading-bar-wrap{width:340px;height:1px;background:rgba(201,168,76,0.1);overflow:hidden;}
+  .loading-bar{height:100%;background:linear-gradient(90deg,var(--copper),var(--bright-gold));width:0%;transition:width 0.5s ease;}
+
+  /* RESULTS */
+  .results-section{display:none;padding:80px;background:rgba(13,11,9,0.45);border-top:1px solid rgba(201,168,76,0.07);}
+  .results-section.active{display:block;animation:fadeUp 0.8s ease;}
+
+  /* PALETTE */
+  .palette-strip{display:flex;height:68px;overflow:hidden;margin-bottom:17px;}
+  .palette-color{flex:1;position:relative;cursor:none;transition:flex 0.4s ease;}
+  .palette-color:hover{flex:2;}
+  .palette-color-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.45);color:white;font-size:8px;letter-spacing:0.1em;text-align:center;padding:4px;opacity:0;transition:opacity 0.3s;text-transform:uppercase;}
+  .palette-color:hover .palette-color-label{opacity:1;}
+
+  /* RECO CARDS */
+  .reco-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:17px;}
+  .reco-card{border:1px solid rgba(201,168,76,0.07);background:rgba(13,11,9,0.65);overflow:hidden;transition:all 0.4s ease;cursor:none;}
+  .reco-card:hover{border-color:rgba(201,168,76,0.3);transform:translateY(-4px);}
+  .reco-img{height:155px;background:linear-gradient(135deg,var(--charcoal),var(--velvet-brown));position:relative;display:flex;align-items:center;justify-content:center;}
+  .reco-badge{position:absolute;top:10px;right:10px;background:linear-gradient(135deg,var(--antique-gold),var(--bright-gold));color:var(--obsidian);font-size:8px;padding:4px 8px;letter-spacing:0.15em;text-transform:uppercase;font-weight:500;}
+  .reco-body{padding:16px;}
+  .reco-category{font-size:8px;letter-spacing:0.25em;text-transform:uppercase;color:var(--rose-gold);margin-bottom:5px;}
+  .reco-name{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:300;margin-bottom:9px;line-height:1.3;}
+  .reco-price{display:flex;align-items:baseline;justify-content:space-between;}
+  .price-tag{font-family:'Cormorant Garamond',serif;font-size:19px;background:linear-gradient(135deg,var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .price-match{font-size:8px;letter-spacing:0.15em;color:var(--sage);text-transform:uppercase;}
+
+  /* INSIGHT */
+  .insight-card{background:linear-gradient(135deg,rgba(196,133,106,0.06),rgba(107,39,55,0.05),rgba(61,94,74,0.06));border:1px solid rgba(201,168,76,0.1);padding:30px;position:relative;overflow:hidden;}
+  .insight-card::before{content:'"';position:absolute;top:-10px;left:18px;font-family:'Cormorant Garamond',serif;font-size:110px;color:rgba(201,168,76,0.05);line-height:1;}
+  .insight-text{font-family:'Playfair Display',serif;font-size:16px;line-height:1.85;font-style:italic;color:rgba(242,235,217,0.76);position:relative;}
+  .insight-meta{display:flex;align-items:center;gap:10px;margin-top:18px;}
+  .insight-dot{width:26px;height:1px;background:linear-gradient(90deg,var(--antique-gold),var(--bright-gold));}
+  .insight-by{font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);}
+
+  /* ROOM TAG */
+  .room-type-detected{display:inline-flex;align-items:center;gap:10px;padding:11px 20px;background:rgba(61,94,74,0.09);border:1px solid rgba(122,158,126,0.22);margin-bottom:28px;}
+  .room-type-icon{width:8px;height:8px;border-radius:50%;background:var(--sage);animation:blink 1.5s ease infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+  .room-type-text{font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--sage);}
+
+  /* TABS */
+  .result-tabs{display:flex;margin-bottom:44px;border-bottom:1px solid rgba(201,168,76,0.1);}
+  .result-tab{padding:14px 28px;background:none;border:none;color:rgba(242,235,217,0.32);font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;cursor:none;position:relative;transition:color 0.3s;}
+  .result-tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--rose-gold),var(--bright-gold));transform:scaleX(0);transition:transform 0.3s;}
+  .result-tab.active{color:var(--gold);}
+  .result-tab.active::after{transform:scaleX(1);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;animation:fadeUp 0.5s ease;}
+
+  /* COLOR GRID */
+  .color-analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:44px;}
+  .lighting-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid rgba(201,168,76,0.16);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--champagne);background:rgba(201,168,76,0.04);}
+
+  /* WALLPAPERS */
+  .wallpaper-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;}
+  .wallpaper-swatch{height:200px;border:1px solid rgba(201,168,76,0.07);position:relative;overflow:hidden;cursor:none;transition:all 0.4s;}
+  .wallpaper-swatch:hover{border-color:var(--gold);}
+  .wallpaper-swatch:hover .wallpaper-info{transform:translateY(0);}
+  .wallpaper-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(13,11,9,0.96),transparent);padding:20px 16px 14px;transform:translateY(30px);transition:transform 0.4s;}
+  .wallpaper-name{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:300;margin-bottom:4px;}
+  .wallpaper-price{font-size:11px;color:var(--gold);}
+  .pat-1{background:repeating-linear-gradient(45deg,#B8936A 0px,#B8936A 2px,#1C1713 2px,#1C1713 22px);}
+  .pat-2{background:radial-gradient(circle at 50% 50%,#5C7A5E 0px,#5C7A5E 8px,#0D0B09 8px,#0D0B09 24px);background-size:48px 48px;}
+  .pat-3{background:repeating-linear-gradient(0deg,#8B3A2A 0px,#8B3A2A 1px,#0D0B09 1px,#0D0B09 18px),repeating-linear-gradient(90deg,#8B3A2A 0px,#8B3A2A 1px,#0D0B09 1px,#0D0B09 18px);}
+  .pat-4{background:linear-gradient(135deg,#8C5F6E 25%,transparent 25%) -20px 0,linear-gradient(225deg,#8C5F6E 25%,transparent 25%) -20px 0,linear-gradient(315deg,#8C5F6E 25%,transparent 25%),linear-gradient(45deg,#8C5F6E 25%,transparent 25%);background-size:40px 40px;background-color:#0D0B09;}
+  .pat-5{background:conic-gradient(from 0deg at 50% 50%,#C9A84C 0deg,#2A2320 60deg,#C9A84C 120deg,#2A2320 180deg,#C9A84C 240deg,#2A2320 300deg,#C9A84C 360deg);background-size:60px 60px;}
+  .pat-6{background:linear-gradient(30deg,#6B2737 12%,transparent 12.5%,transparent 87%,#6B2737 87.5%),linear-gradient(150deg,#6B2737 12%,transparent 12.5%,transparent 87%,#6B2737 87.5%);background-color:#0D0B09;background-size:40px 70px;}
+
+  /* SCOPE CARDS */
+  .scope-card{border:1px solid rgba(201,168,76,0.12);background:rgba(13,11,9,0.6);padding:20px 16px;cursor:none;display:flex;flex-direction:column;align-items:center;gap:9px;transition:all 0.35s cubic-bezier(0.23,1,0.32,1);position:relative;text-align:center;}
+  .scope-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(184,115,51,0.1),rgba(201,168,76,0.07));opacity:0;transition:opacity 0.35s;}
+  .scope-card:hover::before{opacity:1;}
+  .scope-card:hover{border-color:rgba(201,168,76,0.3);transform:translateY(-2px);}
+  .scope-card.active{border-color:var(--gold);background:rgba(201,168,76,0.07);}
+  .scope-card.active::before{opacity:1;}
+  .scope-icon{font-size:26px;}
+  .scope-name{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:300;}
+  .scope-sub{font-size:9px;letter-spacing:0.12em;color:rgba(242,235,217,0.3);text-transform:uppercase;line-height:1.5;}
+
+  /* MISC */
+  canvas{display:block;}
+  .scroll-ind{position:absolute;bottom:40px;left:80px;display:flex;align-items:center;gap:14px;animation:fadeUp 1s 1.5s both;}
+  .scroll-line{width:1px;height:50px;background:rgba(201,168,76,0.28);position:relative;overflow:hidden;}
+  .scroll-line::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:var(--gold);animation:scroll-anim 1.5s ease infinite;}
+  @keyframes scroll-anim{0%{transform:translateY(-100%)}100%{transform:translateY(200%)}}
+  .scroll-text{font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(242,235,217,0.22);writing-mode:vertical-rl;}
+  footer{padding:56px 80px;border-top:1px solid rgba(201,168,76,0.07);display:flex;align-items:center;justify-content:space-between;}
+  .footer-logo{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300;letter-spacing:0.35em;background:linear-gradient(135deg,var(--antique-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .footer-note{font-size:10px;letter-spacing:0.15em;color:rgba(242,235,217,0.16);}
+  .fade-up{opacity:0;transform:translateY(28px);animation:fadeUp 0.8s ease forwards;}
+  .delay-1{animation-delay:0.12s;}.delay-2{animation-delay:0.24s;}.delay-3{animation-delay:0.38s;}
+  .divider-line{height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,0.13),transparent);margin:28px 0;}
+
+  @media(max-width:900px){
+    nav{padding:20px 24px;}
+    .hero{grid-template-columns:1fr;}
+    .hero-right{display:none;}
+    .hero-left{padding:100px 24px 60px;}
+    .app-section{padding:60px 24px;}
+    .form-grid{grid-template-columns:1fr;gap:26px;}
+    .room-type-grid{grid-template-columns:repeat(2,1fr);}
+    .stats-bar{padding:24px 24px;}
+    .results-section{padding:60px 24px;}
+    footer{padding:40px 24px;flex-direction:column;gap:13px;}
+    .wallpaper-grid{grid-template-columns:repeat(2,1fr);}
+    .color-analysis-grid{grid-template-columns:1fr;}
+    .step-progress{flex-direction:column;}
+    .step-pill{border-right:none;border-bottom:1px solid rgba(201,168,76,0.08);}
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-follower" id="cursorFollower"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-title">Analysing your <em>space</em></div>
+  <div class="loading-steps">
+    <div class="loading-step" id="step1"><div class="step-dot"></div><span>Identifying room type via CNN</span></div>
+    <div class="loading-step" id="step2"><div class="step-dot"></div><span>Extracting dominant color tones — K-Means</span></div>
+    <div class="loading-step" id="step3"><div class="step-dot"></div><span>Reading lighting &amp; spatial conditions</span></div>
+    <div class="loading-step" id="step4"><div class="step-dot"></div><span>Calculating room volume &amp; scale</span></div>
+    <div class="loading-step" id="step5"><div class="step-dot"></div><span>Matching budget-optimal recommendations</span></div>
+  </div>
+  <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">House Muse</div>
+  <ul class="nav-links">
+    <li><a href="#">Studio</a></li>
+    <li><a href="#">Palette Lab</a></li>
+    <li><a href="#">Lookbook</a></li>
+    <li><a href="#">About</a></li>
+  </ul>
+  <button class="nav-cta" id="navAuthBtn" onclick="openSignIn()">Sign In</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-tag fade-up">AI-Powered Interior Design</div>
+    <h1 class="hero-title fade-up delay-1">Your space,<br><em>transformed.</em></h1>
+    <p class="hero-sub fade-up delay-2">Upload a photo of your room. Our AI reads the light, extracts dominant colours, identifies spatial character — and returns curated palettes, wallpapers &amp; décor matched to your exact budget.</p>
+    <div class="hero-actions fade-up delay-3">
+      <button class="btn-primary" onclick="document.querySelector('.app-section').scrollIntoView({behavior:'smooth'})">Design My Space</button>
+      <button class="btn-ghost">View Lookbook <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1"/></svg></button>
+    </div>
+    <div class="scroll-ind"><div class="scroll-line"></div><div class="scroll-text">Scroll to begin</div></div>
+  </div>
+  <div class="hero-right">
+    <div class="mood-collage">
+      <div class="mood-cell room-1"><div class="room-label">Vintage Indian</div></div>
+      <div class="mood-cell room-2"><div class="room-label">Sage Living</div></div>
+      <div class="mood-cell room-3"><div class="room-label">Warm Boho</div></div>
+      <div class="mood-cell room-4"><div class="room-label">Moody Study</div></div>
+      <div class="mood-cell room-5"><div class="room-label">Contemporary Indian</div></div>
+      <div class="mood-cell room-6"><div class="room-label">Dark Academia</div></div>
+      <div class="mood-cell room-7"><div class="room-label">Earthy Tones</div></div>
+      <div class="mood-cell room-8"><div class="room-label">Golden Hour</div></div>
+    </div>
+    <div class="mood-overlay"></div>
+  </div>
+</section>
+
+
+
+
+<!-- ════ APP ════ -->
+<section class="app-section" id="appSection">
+  <div class="section-header">
+    <div>
+      <div class="section-tag">Design Studio</div>
+      <h2 class="section-title">Tell us about<br><em>your space</em></h2>
+    </div>
+    <p class="section-desc">A precise profile of your room lets our AI return recommendations that are truly tailored — not generic.</p>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="step-progress">
+    <div class="step-pill active" id="pill1"><div class="step-num">1</div><div class="step-label">Room Type &amp; Count</div></div>
+    <div class="step-pill" id="pill2"><div class="step-num">2</div><div class="step-label">Dimensions &amp; Image</div></div>
+    <div class="step-pill" id="pill3"><div class="step-num">3</div><div class="step-label">Budget &amp; Style</div></div>
+  </div>
+
+  <!-- ── STEP 1 ── -->
+  <div class="step-panel active" id="stepPanel1">
+    <div style="max-width:960px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="group-label">Select Room Type</label>
+        <div class="room-type-grid">
+          <div class="room-type-card" onclick="selectRoom(this,'Living Room')">
+            <div class="room-check"><svg viewBox="0 0 10 8" fill="none" width="10" height="8"><path d="M1 4l3 3 5-6" stroke="#0D0B09" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <div class="room-icon">🛋️</div><div class="room-type-name">Living Room</div><div class="room-type-sub">Lounge · Drawing</div>
+          </div>
+          <div class="room-type-card" onclick="selectRoom(this,'Bedroom')">
+            <div class="room-check"><svg viewBox="0 0 10 8" fill="none" width="10" height="8"><path d="M1 4l3 3 5-6" stroke="#0D0B09" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <div class="room-icon">🛏️</div><div class="room-type-name">Bedroom</div><div class="room-type-sub">Master · Guest</div>
+          </div>
+          <div class="room-type-card" onclick="selectRoom(this,'Kitchen')">
+            <div class="room-check"><svg viewBox="0 0 10 8" fill="none" width="10" height="8"><path d="M1 4l3 3 5-6" stroke="#0D0B09" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <div class="room-icon">🍳</div><div class="room-type-name">Kitchen</div><div class="room-type-sub">Modular · Open</div>
+          </div>
+          <div class="room-type-card" onclick="selectRoom(this,'Dining Room')">
+            <div class="room-check"><svg viewBox="0 0 10 8" fill="none" width="10" height="8"><path d="M1 4l3 3 5-6" stroke="#0D0B09" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <div class="room-icon">🍽️</div><div class="room-type-name">Dining Room</div><div class="room-type-sub">Formal · Casual</div>
+          </div>
+          <div class="room-type-card" onclick="selectRoom(this,'Bathroom')">
+            <div class="room-check"><svg viewBox="0 0 10 8" fill="none" width="10" height="8"><path d="M1 4l3 3 5-6" stroke="#0D0B09" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <div class="room-icon">🚿</div><div class="room-type-name">Bathroom</div><div class="room-type-sub">Ensuite · Common</div>
+          </div>
+          <div class="room-type-card" onclick="selectRoom(this,'Study Room')">
+            <div class="room-check"><svg viewBox="0 0 10 8" fill="none" width="10" height="8"><path d="M1 4l3 3 5-6" stroke="#0D0B09" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <div class="room-icon">📚</div><div class="room-type-name">Study Room</div><div class="room-type-sub">Home Office · Library</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-line"></div>
+
+      <div class="form-group">
+        <label class="group-label">Number of Rooms to Design</label>
+        <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap;">
+          <div class="rooms-count-row">
+            <button class="count-btn" onclick="changeCount(-1)">−</button>
+            <div class="count-display" id="roomCount">1</div>
+            <button class="count-btn" onclick="changeCount(1)">+</button>
+          </div>
+          <div style="font-size:13px;color:rgba(242,235,217,0.38);line-height:1.65;">
+            We'll generate separate recommendations<br>for each room based on type &amp; dimensions.
+          </div>
+        </div>
+      </div>
+
+      <div class="step-nav">
+        <button class="btn-next" onclick="goToStep(2)">Continue to Dimensions →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2 ── -->
+  <div class="step-panel" id="stepPanel2">
+    <div class="form-grid">
+      <div class="form-col">
+        <div class="form-group">
+          <label class="group-label">Upload Room Photo</label>
+          <div class="upload-area" id="uploadArea">
+            <input type="file" accept="image/*" id="roomImageInput" onchange="handleImageUpload(event)">
+            <div class="upload-icon" id="uploadIcon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.6)" stroke-width="1">
+                <polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+              </svg>
+            </div>
+            <div id="uploadContent">
+              <div class="upload-text">Drop your room photo here</div>
+              <div class="upload-sub" style="margin-top:9px;">JPG, PNG or HEIC · Max 20MB</div>
+            </div>
+            <div class="upload-preview" id="uploadPreview">
+              <img id="previewImg" src="" alt="Room preview">
+              <div class="upload-preview-overlay">
+                <div>
+                  <div style="font-size:9px;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-bottom:4px;">Image Loaded</div>
+                  <div style="font-size:12px;color:rgba(242,235,217,0.62);" id="imgName"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-col">
+        <div class="form-group">
+          <label class="group-label">Room Dimensions</label>
+          <div class="dims-grid">
+            <div class="dim-input-wrap"><span class="dim-label">Length</span><input type="number" class="dim-input" placeholder="12" id="dimLength" min="1"><span class="dim-unit">ft</span></div>
+            <div class="dim-input-wrap"><span class="dim-label">Width</span><input type="number" class="dim-input" placeholder="10" id="dimWidth" min="1"><span class="dim-unit">ft</span></div>
+            <div class="dim-input-wrap"><span class="dim-label">Height</span><input type="number" class="dim-input" placeholder="9" id="dimHeight" min="1"><span class="dim-unit">ft</span></div>
+          </div>
+          <div style="margin-top:13px;padding:13px;border:1px solid rgba(201,168,76,0.07);background:rgba(201,168,76,0.025);">
+            <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(242,235,217,0.28);margin-bottom:5px;">Calculated Volume</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;background:linear-gradient(135deg,var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;" id="volumeDisplay">— cu.ft</div>
+          </div>
+        </div>
+        <div style="padding:17px;border:1px solid rgba(201,168,76,0.08);background:rgba(13,11,9,0.55);display:flex;align-items:flex-start;gap:12px;">
+          <div style="color:var(--gold);font-size:16px;margin-top:2px;">✦</div>
+          <div style="font-size:12px;line-height:1.75;color:rgba(242,235,217,0.38);">Accurate dimensions let our AI scale furniture recommendations precisely — so nothing looks out of proportion in your space.</div>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goToStep(1)">← Back</button>
+          <button class="btn-next" onclick="goToStep(3)">Continue to Preferences →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3 ── -->
+  <div class="step-panel" id="stepPanel3">
+    <div class="form-grid">
+      <div class="form-col">
+        <div class="form-group">
+          <label class="group-label">Scope of Work</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:6px;">
+            <div class="scope-card active" onclick="selectScope(this,'decor')" id="scope-decor">
+              <div class="scope-icon">🪴</div>
+              <div class="scope-name">Home Décor</div>
+              <div class="scope-sub">Accessories, soft furnishings, accent pieces</div>
+            </div>
+            <div class="scope-card" onclick="selectScope(this,'interior')" id="scope-interior">
+              <div class="scope-icon">🏛️</div>
+              <div class="scope-name">Interior Design</div>
+              <div class="scope-sub">Furniture, layout, structural elements</div>
+            </div>
+            <div class="scope-card" onclick="selectScope(this,'both')" id="scope-both">
+              <div class="scope-icon">✦</div>
+              <div class="scope-name">Full Makeover</div>
+              <div class="scope-sub">Décor + Design — complete transformation</div>
+            </div>
+          </div>
+          <div id="scopeNote" style="padding:11px 14px;border:1px solid rgba(201,168,76,0.1);background:rgba(201,168,76,0.03);font-size:11px;color:rgba(242,235,217,0.42);line-height:1.6;margin-top:2px;">
+            <span id="scopeNoteText">Budget will be optimised for décor items: cushions, rugs, plants, lighting accents &amp; accessories.</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="group-label">Total Décor Budget</label>
+          <div class="budget-section">
+            <div class="budget-header">
+              <span class="budget-label" id="budgetScopeLabel">Home Décor Budget</span>
+              <span class="budget-value" id="budgetDisplay">₹25,000</span>
+            </div>
+            <input type="range" id="budgetSlider" min="5000" max="150000" step="5000" value="25000" oninput="updateBudget(this.value)">
+            <div style="display:flex;justify-content:space-between;margin-top:10px;">
+              <span style="font-size:9px;letter-spacing:0.1em;color:rgba(242,235,217,0.2);" id="sliderMin">₹5K — Essential</span>
+              <span style="font-size:9px;letter-spacing:0.1em;color:rgba(242,235,217,0.2);" id="sliderMax">₹1.5L — Premium</span>
+            </div>
+          </div>
+          <div id="budgetTier" style="margin-top:11px;padding:13px 16px;border:1px solid rgba(201,168,76,0.1);display:flex;align-items:center;gap:12px;background:rgba(13,11,9,0.5);">
+            <span style="font-size:20px;" id="tierEmoji">⭐</span>
+            <div>
+              <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,235,217,0.3);margin-bottom:3px;">Tier</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--champagne);" id="tierLabel">Smart</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-col">
+        <div class="form-group">
+          <label class="group-label">Aesthetic Preference <span style="color:rgba(242,235,217,0.22);font-size:9px;">(select all that apply)</span></label>
+          <div class="style-chips" id="styleChips">
+            <button class="style-chip active" onclick="toggleChip(this)"><span>Japandi</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Bohemian</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Mid-Century</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Contemporary Indian</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Vintage Indian</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Art Deco</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Coastal</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Dark Academia</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Cottagecore</span></button>
+            <button class="style-chip" onclick="toggleChip(this)"><span>Industrial</span></button>
+          </div>
+        </div>
+        <div style="flex-direction:column;display:flex;gap:13px;margin-top:8px;">
+          <button class="analyze-btn" onclick="startAnalysis()"><span>✦ Analyse &amp; Generate Recommendations</span></button>
+          <div><button class="btn-back" onclick="goToStep(2)">← Back</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════ RESULTS ════ -->
+<div class="results-section" id="resultsSection">
+  <div class="section-tag" style="margin-bottom:13px;">AI Analysis Complete</div>
+  <h2 class="section-title" style="margin-bottom:38px;">Your <em>curated</em> space</h2>
+  <div class="room-type-detected"><div class="room-type-icon"></div><span class="room-type-text" id="roomTypeText">Living Room · Natural Light · 12×10×9 ft</span></div>
+  <div class="insight-card" style="margin-bottom:44px;">
+    <p class="insight-text" id="aiInsight">Your space carries warm undertones with generous natural light from the east. The spatial volume suggests layered lighting and mid-scale furniture will create a balanced, inviting atmosphere. Earthy tones with sage accents will harmonise beautifully with your existing architecture.</p>
+    <div class="insight-meta"><div class="insight-dot"></div><span class="insight-by">House Muse AI — Design Intelligence</span></div>
+  </div>
+
+  <!-- ── GENERATE STYLED ROOM IMAGE ── -->
+  <div id="imageGenSection" style="margin-bottom:52px;padding:32px;border:1px solid rgba(201,168,76,0.2);background:linear-gradient(135deg,rgba(184,115,51,0.06),rgba(201,168,76,0.04));">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+      <div>
+        <div style="font-size:9px;letter-spacing:0.35em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">✦ Stable Diffusion XL · Replicate API</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;">Visualise your <em style="color:var(--rose-gold);">styled room</em></div>
+        <div style="font-size:12px;color:rgba(242,235,217,0.42);margin-top:6px;line-height:1.7;">Generate a photorealistic image of your room styled with the recommended palette and aesthetic.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <span style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,235,217,0.35);">Variants</span>
+          <div style="display:flex;gap:8px;">
+            <button onclick="setVariants(1,this)" class="variant-btn active-variant" style="padding:8px 16px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.1);color:var(--gold);font-size:11px;cursor:none;">1</button>
+            <button onclick="setVariants(2,this)" class="variant-btn" style="padding:8px 16px;border:1px solid rgba(201,168,76,0.2);background:transparent;color:rgba(242,235,217,0.45);font-size:11px;cursor:none;">2</button>
+            <button onclick="setVariants(3,this)" class="variant-btn" style="padding:8px 16px;border:1px solid rgba(201,168,76,0.2);background:transparent;color:rgba(242,235,217,0.45);font-size:11px;cursor:none;">3</button>
+          </div>
+        </div>
+        <button id="generateImgBtn" onclick="generateRoomImage()" style="padding:16px 36px;background:linear-gradient(135deg,var(--copper),var(--gold));color:var(--obsidian);border:none;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;cursor:none;transition:all 0.3s;">
+          Generate Image
+        </button>
+      </div>
+    </div>
+
+    <!-- Generated images appear here -->
+    <div id="generatedImagesGrid" style="display:none;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:8px;"></div>
+
+    <!-- Loading state -->
+    <div id="imgGenLoading" style="display:none;text-align:center;padding:48px;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:var(--champagne);margin-bottom:12px;">Generating your styled room…</div>
+      <div style="font-size:11px;color:rgba(242,235,217,0.4);letter-spacing:0.1em;">Stable Diffusion XL · ~15 seconds</div>
+      <div style="margin-top:20px;height:1px;background:rgba(201,168,76,0.1);overflow:hidden;">
+        <div id="imgGenBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--antique-gold),var(--bright-gold));transition:width 0.5s ease;"></div>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div id="imgGenError" style="display:none;padding:16px;border:1px solid rgba(196,133,106,0.3);background:rgba(196,133,106,0.06);font-size:12px;color:var(--rose-gold);line-height:1.7;margin-top:8px;"></div>
+  </div>
+  <div class="result-tabs">
+    <button class="result-tab active" onclick="switchTab(this,'palette')">Color Palette</button>
+    <button class="result-tab" onclick="switchTab(this,'wallpapers')">Wallpapers</button>
+    <button class="result-tab" onclick="switchTab(this,'decor')">Décor &amp; Furniture</button>
+    <button class="result-tab" onclick="switchTab(this,'objects')">Objects Detected</button>
+    <button class="result-tab" onclick="switchTab(this,'budget')">Budget Breakdown</button>
+  </div>
+
+  <div class="tab-content active" id="tab-palette">
+    <!-- Object-aware palette banner injected here by JS -->
+    <div id="objectPaletteBanner"></div>
+    <div class="color-analysis-grid">
+      <div>
+        <div style="display:flex;align-items:center;gap:13px;margin-bottom:17px;">
+          <div style="font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(242,235,217,0.32);">Extracted from Image</div>
+          <div class="lighting-badge" id="lightingBadge"><svg width="8" height="8" viewBox="0 0 8 8" fill="var(--gold)"><circle cx="4" cy="4" r="4"/></svg>Warm Natural Light</div>
+        </div>
+        <div class="palette-strip" id="paletteStrip"></div>
+        <div id="paletteLabels" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;"></div>
+      </div>
+      <div>
+        <div style="font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(242,235,217,0.32);margin-bottom:17px;">Recommended Palette</div>
+        <div class="palette-strip" id="recoPaletteStrip"></div>
+        <div style="margin-top:13px;font-size:13px;line-height:1.75;color:rgba(242,235,217,0.4);" id="paletteGuidance">Based on your aesthetic and room light, warm neutrals anchored by copper and sage create a refined, welcoming space.</div>
+      </div>
+    </div>
+    <!-- Style similarity scores from CLIP -->
+    <div id="styleSimilarityBar" style="margin-top:32px;"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:13px;margin-top:34px;" id="colorNameGrid"></div>
+  </div>
+
+  <div class="tab-content" id="tab-wallpapers">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:26px;">
+      <div style="font-size:13px;color:rgba(242,235,217,0.4);" id="wallpaperCount">Matched to your palette and budget</div>
+      <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);">CLIP + Colour Scored</div>
+    </div>
+    <div class="wallpaper-grid" id="wallpaper-dynamic-grid"></div>
+  </div>
+
+  <div class="tab-content" id="tab-decor">
+    <div style="margin-bottom:26px;font-size:13px;color:rgba(242,235,217,0.4);">CLIP-matched items within your ₹<span id="budgetLabel2">50,000</span> budget</div>
+    <div class="reco-grid" id="recoGrid"></div>
+  </div>
+
+  <!-- NEW: Objects Detected Tab -->
+  <div class="tab-content" id="tab-objects">
+    <div id="objectDetectionPanel"></div>
+  </div>
+
+  <div class="tab-content" id="tab-budget">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;">
+      <div>
+        <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(242,235,217,0.32);margin-bottom:20px;">Budget Allocation</div>
+        <canvas id="budgetChart" width="300" height="300"></canvas>
+      </div>
+      <div>
+        <div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(242,235,217,0.32);margin-bottom:20px;">Category Breakdown</div>
+        <div id="budgetBreakdown" style="display:flex;flex-direction:column;gap:14px;"></div>
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid rgba(201,168,76,0.08);">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:11px;letter-spacing:0.1em;color:rgba(242,235,217,0.32);text-transform:uppercase;">Total Estimate</span>
+            <span style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;background:linear-gradient(135deg,var(--bright-gold),var(--champagne));-webkit-background-clip:text;-webkit-text-fill-color:transparent;" id="totalBudgetDisplay">₹44,200</span>
+          </div>
+          <div style="font-size:11px;color:var(--sage);margin-top:6px;" id="budgetSaved">You save ₹5,800 from your total budget ✦</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">House Muse</div>
+  <div class="footer-note">AI-Powered Interior Design · © 2025 · House Muse</div>
+</footer>
+
+<!-- ════ SIGN IN MODAL ════ -->
+<div id="signInModal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(13,11,9,0.96);display:none;align-items:center;justify-content:center;">
+<style>
+.auth-box{width:420px;background:#130F0C;border:1px solid rgba(201,168,76,0.18);padding:52px 48px;position:relative;}
+.auth-logo{font-family:'Cormorant Garamond',serif;font-size:22px;letter-spacing:0.18em;background:linear-gradient(135deg,var(--bright-gold),var(--champagne),var(--antique-gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
+.auth-sub{font-size:11px;color:rgba(242,235,217,0.35);letter-spacing:0.12em;margin-bottom:40px;}
+.auth-tab-row{display:flex;border-bottom:1px solid rgba(201,168,76,0.1);margin-bottom:32px;}
+.auth-tab{flex:1;padding:10px;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(242,235,217,0.3);cursor:pointer;position:relative;transition:color 0.3s;}
+.auth-tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--rose-gold),var(--bright-gold));transform:scaleX(0);transition:transform 0.3s;}
+.auth-tab.active{color:var(--gold);}
+.auth-tab.active::after{transform:scaleX(1);}
+.auth-field{margin-bottom:20px;}
+.auth-label{font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(242,235,217,0.32);display:block;margin-bottom:9px;}
+.auth-input{width:100%;background:rgba(13,11,9,0.8);border:1px solid rgba(201,168,76,0.16);padding:14px 16px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color 0.3s;cursor:none;}
+.auth-input:focus{border-color:rgba(201,168,76,0.5);}
+.auth-input::placeholder{color:rgba(242,235,217,0.18);}
+.auth-btn{width:100%;background:linear-gradient(135deg,var(--copper),var(--gold));color:var(--obsidian);border:none;padding:16px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.22em;text-transform:uppercase;cursor:pointer;margin-top:8px;transition:opacity 0.3s;}
+.auth-btn:hover{opacity:0.88;}
+.auth-close{position:absolute;top:18px;right:20px;background:none;border:none;color:rgba(242,235,217,0.25);font-size:20px;cursor:pointer;line-height:1;transition:color 0.3s;}
+.auth-close:hover{color:var(--gold);}
+.auth-divider{display:flex;align-items:center;gap:14px;margin:22px 0;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:rgba(201,168,76,0.1);}
+.auth-divider span{font-size:9px;letter-spacing:0.2em;color:rgba(242,235,217,0.2);text-transform:uppercase;}
+.auth-err{font-size:11px;color:var(--rose-gold);margin-top:10px;display:none;}
+.auth-google{width:100%;background:transparent;border:1px solid rgba(201,168,76,0.18);color:rgba(242,235,217,0.45);padding:13px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.15em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.3s;}
+.auth-google:hover{border-color:rgba(201,168,76,0.38);color:var(--champagne);}
+</style>
+  <div class="auth-box">
+    <button class="auth-close" onclick="closeSignIn()">✕</button>
+    <div class="auth-logo">House Muse</div>
+    <div class="auth-sub">Your personal design studio</div>
+    <div class="auth-tab-row">
+      <button class="auth-tab active" id="tabSignIn" onclick="switchAuthTab('signin')">Sign In</button>
+      <button class="auth-tab" id="tabSignUp" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+
+    <!-- SIGN IN FORM -->
+    <div id="formSignIn">
+      <div class="auth-field">
+        <label class="auth-label">Email</label>
+        <input class="auth-input" type="email" id="siEmail" placeholder="you@example.com">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input class="auth-input" type="password" id="siPassword" placeholder="••••••••">
+      </div>
+      <div id="siErr" class="auth-err">Incorrect email or password.</div>
+      <button class="auth-btn" onclick="doSignIn()">Sign In →</button>
+      <div class="auth-divider"><span>or</span></div>
+      <button class="auth-google" onclick="doGoogleSignIn()">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+
+    <!-- SIGN UP FORM -->
+    <div id="formSignUp" style="display:none;">
+      <div class="auth-field">
+        <label class="auth-label">Full Name</label>
+        <input class="auth-input" type="text" id="suName" placeholder="Alisha">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Email</label>
+        <input class="auth-input" type="email" id="suEmail" placeholder="you@example.com">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input class="auth-input" type="password" id="suPassword" placeholder="Min. 6 characters">
+      </div>
+      <div id="suErr" class="auth-err">Please fill all fields correctly.</div>
+      <button class="auth-btn" onclick="doSignUp()">Create Account →</button>
+      <div class="auth-divider"><span>or</span></div>
+      <button class="auth-google" onclick="doGoogleSignIn()">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ DASHBOARD ════ -->
+<div id="dashboardModal" style="display:none;position:fixed;inset:0;z-index:500;background:#0e0d0b;overflow-y:auto;">
+<style>
+.db-sidebar{position:fixed;left:0;top:0;width:210px;height:100vh;background:#0a0908;border-right:0.5px solid #2a2620;padding:28px 0;display:flex;flex-direction:column;}
+.db-logo{padding:0 22px 26px;font-family:'Cormorant Garamond',serif;font-size:19px;letter-spacing:0.12em;color:#c9a96e;}
+.db-logo span{font-style:italic;font-size:12px;color:#5a4e40;display:block;margin-top:2px;}
+.db-nav-sec{font-size:9px;letter-spacing:0.12em;color:#2e2a24;padding:16px 22px 5px;text-transform:uppercase;}
+.db-nav{display:flex;align-items:center;gap:10px;padding:9px 22px;font-size:12px;letter-spacing:0.04em;color:#6a5a48;cursor:pointer;border-left:2px solid transparent;transition:all 0.15s;}
+.db-nav:hover{color:#c9a96e;background:#13110e;}
+.db-nav.active{color:#c9a96e;border-left:2px solid #c9a96e;background:#13110e;}
+.db-main{margin-left:210px;padding:30px 36px;color:#e8e0d0;min-height:100vh;}
+.db-topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;}
+.db-greet h2{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;color:#e8d5a3;}
+.db-greet p{font-size:12px;color:#5a4e40;margin-top:4px;}
+.db-actions{display:flex;gap:10px;}
+.db-btn-primary{background:#c9a96e;color:#0a0908;border:none;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;font-weight:500;transition:opacity 0.2s;}
+.db-btn-primary:hover{opacity:0.85;}
+.db-btn-ghost{background:transparent;border:1px solid rgba(201,168,76,0.25);color:rgba(242,235,217,0.45);padding:10px 20px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;}
+.db-btn-ghost:hover{border-color:rgba(201,168,76,0.5);color:var(--champagne);}
+.db-grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.db-panel{background:#13110e;border:0.5px solid #2a2620;padding:22px;}
+.db-ptitle{font-size:9px;letter-spacing:0.12em;color:#5a4e40;text-transform:uppercase;margin-bottom:18px;}
+.db-proj{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid #1a1816;cursor:pointer;transition:opacity 0.2s;}
+.db-proj:hover{opacity:0.75;}
+.db-proj:last-child{border-bottom:none;}
+.db-proj-name{font-size:13px;color:#c9a96e;}
+.db-proj-meta{font-size:10px;color:#3a3028;margin-top:2px;}
+.db-badge{margin-left:auto;font-size:9px;padding:3px 8px;letter-spacing:0.05em;flex-shrink:0;}
+.badge-done{background:#1a2416;color:#6a9e55;border:0.5px solid #2a4020;}
+.badge-wip{background:#1e1a0e;color:#c9a96e;border:0.5px solid #3a3018;}
+.db-swatch-row{display:flex;gap:7px;margin-bottom:12px;align-items:center;}
+.db-swatch{width:28px;height:28px;flex-shrink:0;}
+.db-act{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid #1a1816;}
+.db-act:last-child{border-bottom:none;}
+.db-act-dot{width:6px;height:6px;border-radius:50%;background:#c9a96e;margin-top:4px;flex-shrink:0;}
+.db-act-txt{font-size:11px;color:#5a4e40;line-height:1.6;}
+.db-act-txt strong{color:#c9a96e;font-weight:400;}
+.db-act-time{font-size:10px;color:#2e2a24;margin-top:1px;}
+.db-user{display:flex;align-items:center;gap:10px;padding:16px 22px 0;border-top:0.5px solid #1a1816;margin-top:auto;}
+.db-avatar{width:34px;height:34px;border-radius:50%;background:#1e1a10;border:0.5px solid #c9a96e;display:flex;align-items:center;justify-content:center;font-size:13px;color:#c9a96e;font-family:'Cormorant Garamond',serif;flex-shrink:0;}
+.db-uname{font-size:13px;color:#c9a96e;}
+.db-uplan{font-size:10px;color:#3a3028;}
+.db-signout{font-size:10px;color:#3a3028;margin-top:2px;cursor:pointer;letter-spacing:0.05em;text-decoration:underline;text-underline-offset:2px;}
+.db-signout:hover{color:#c9a96e;}
+.db-empty{padding:48px 0;text-align:center;color:#3a3028;font-size:13px;font-family:'Cormorant Garamond',serif;font-style:italic;}
+.db-chip{font-size:10px;padding:4px 11px;border:0.5px solid #2a2620;color:#4a3e30;cursor:pointer;letter-spacing:0.04em;margin:3px 3px 0 0;display:inline-block;transition:all 0.2s;}
+.db-chip:hover,.db-chip.sel{border-color:#c9a96e;color:#c9a96e;}
+.db-style{font-size:10px;padding:4px 11px;border:0.5px solid #2a2620;color:#4a3e30;cursor:pointer;letter-spacing:0.04em;margin:3px 3px 0 0;display:inline-block;transition:all 0.2s;}
+.db-style:hover,.db-style.sel{border-color:#c9a96e;color:#c9a96e;background:#1a150d;}
+.db-gen-btn{width:100%;background:#c9a96e;color:#0a0908;border:none;padding:11px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;font-weight:500;margin-top:16px;transition:opacity 0.2s;}
+.db-gen-btn:hover{opacity:0.85;}
+</style>
+
+  <div class="db-sidebar">
+    <div class="db-logo">House Muse <span>Design Studio</span></div>
+    <div class="db-nav-sec">Menu</div>
+    <div class="db-nav active">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="4.5" height="4.5" stroke="currentColor" stroke-width="1"/><rect x="7.5" y="1" width="4.5" height="4.5" stroke="currentColor" stroke-width="1"/><rect x="1" y="7.5" width="4.5" height="4.5" stroke="currentColor" stroke-width="1"/><rect x="7.5" y="7.5" width="4.5" height="4.5" stroke="currentColor" stroke-width="1"/></svg>
+      Dashboard
+    </div>
+    <div class="db-nav" onclick="closeDashboard();document.querySelector('.app-section').scrollIntoView({behavior:'smooth'})">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 12V5l5.5-4 5.5 4v7" stroke="currentColor" stroke-width="1"/><rect x="4" y="7.5" width="2.5" height="4.5" stroke="currentColor" stroke-width="1"/></svg>
+      Design Studio
+    </div>
+    <div class="db-nav">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1"/><circle cx="6.5" cy="6.5" r="2" fill="currentColor"/></svg>
+      Palette Lab
+    </div>
+    <div class="db-nav">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2" width="11" height="9" stroke="currentColor" stroke-width="1"/><path d="M1 6h11" stroke="currentColor" stroke-width="0.8"/></svg>
+      Lookbook
+    </div>
+    <div class="db-nav" onclick="doSignOut()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M8 1h4v11H8M5 9l-4-2.5L5 4M1 6.5h7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+      Sign Out
+    </div>
+
+    <div class="db-user" id="dbUserRow">
+      <div class="db-avatar" id="dbAvatar">A</div>
+      <div>
+        <div class="db-uname" id="dbUserName">Alisha</div>
+        <div class="db-uplan">Free Plan</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="db-main">
+    <div class="db-topbar">
+      <div class="db-greet">
+        <h2 id="dbGreeting">Welcome back, Alisha ✦</h2>
+        <p>Your personal AI design studio</p>
+      </div>
+      <div class="db-actions">
+        <button class="db-btn-primary" onclick="closeDashboard();document.querySelector('.app-section').scrollIntoView({behavior:'smooth'})">+ New Project</button>
+        <button class="db-btn-ghost" onclick="closeDashboard()">✕ Close</button>
+      </div>
+    </div>
+
+    <div class="db-grid2">
+      <!-- Recent Projects -->
+      <div class="db-panel">
+        <div class="db-ptitle">Recent Projects</div>
+        <div id="dbProjects">
+          <div class="db-empty">No projects yet — start your first design above</div>
+        </div>
+      </div>
+
+      <!-- Saved Palettes -->
+      <div class="db-panel">
+        <div class="db-ptitle">Saved Palettes</div>
+        <div id="dbPalettes">
+          <div class="db-empty">No palettes saved yet — run an analysis to get started</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="db-grid2">
+      <!-- Quick Generate -->
+      <div class="db-panel">
+        <div class="db-ptitle">Quick Generate</div>
+        <div style="margin-bottom:10px;font-size:10px;color:#3a3028;letter-spacing:0.06em;">Room</div>
+        <div id="dbRoomChips">
+          <span class="db-chip sel" onclick="dbSelectChip(this,'room')">Living Room</span>
+          <span class="db-chip" onclick="dbSelectChip(this,'room')">Bedroom</span>
+          <span class="db-chip" onclick="dbSelectChip(this,'room')">Kitchen</span>
+          <span class="db-chip" onclick="dbSelectChip(this,'room')">Study</span>
+          <span class="db-chip" onclick="dbSelectChip(this,'room')">Dining</span>
+        </div>
+        <div style="margin:14px 0 8px;font-size:10px;color:#3a3028;letter-spacing:0.06em;">Style</div>
+        <div id="dbStyleChips">
+          <span class="db-style sel" onclick="dbSelectChip(this,'style')">Japandi</span>
+          <span class="db-style" onclick="dbSelectChip(this,'style')">Bohemian</span>
+          <span class="db-style" onclick="dbSelectChip(this,'style')">Contemporary Indian</span>
+          <span class="db-style" onclick="dbSelectChip(this,'style')">Minimalist</span>
+          <span class="db-style" onclick="dbSelectChip(this,'style')">Vintage Indian</span>
+        </div>
+        <button class="db-gen-btn" onclick="dbQuickGenerate()">Open in Design Studio →</button>
+      </div>
+
+      <!-- Activity -->
+      <div class="db-panel">
+        <div class="db-ptitle">Recent Activity</div>
+        <div id="dbActivity">
+          <div class="db-empty">Your activity will appear here</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// CURSOR
+const cursor=document.getElementById('cursor'),follower=document.getElementById('cursorFollower');
+let mx=0,my=0,fx=0,fy=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx-4.5+'px';cursor.style.top=my-4.5+'px';});
+(function af(){fx+=(mx-fx)*0.1;fy+=(my-fy)*0.1;follower.style.left=fx-17+'px';follower.style.top=fy-17+'px';requestAnimationFrame(af);})();
+document.querySelectorAll('button,input,a,.room-type-card,.style-chip').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cursor.style.transform='scale(2.2)';follower.style.transform='scale(1.6)';});
+  el.addEventListener('mouseleave',()=>{cursor.style.transform='scale(1)';follower.style.transform='scale(1)';});
+});
+
+// SCOPE SELECTION
+const scopeData={
+  decor:{label:'Home Décor Budget',min:5000,max:150000,default:25000,note:'Budget will be optimised for décor items: cushions, rugs, plants, lighting accents & accessories.',emoji:'🪴'},
+  interior:{label:'Interior Design Budget',min:30000,max:1000000,default:150000,note:'Budget covers furniture, layout planning, structural elements and fitted pieces.',emoji:'🏛️'},
+  both:{label:'Full Makeover Budget',min:50000,max:2000000,default:300000,note:'Comprehensive budget spanning décor accessories through full interior design — the complete transformation.',emoji:'✦'}
+};
+let currentScope='decor';
+function selectScope(el,type){
+  document.querySelectorAll('.scope-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');currentScope=type;
+  const d=scopeData[type];
+  const slider=document.getElementById('budgetSlider');
+  slider.min=d.min;slider.max=d.max;slider.step=Math.max(1000,Math.floor(d.max/100));slider.value=d.default;
+  document.getElementById('budgetScopeLabel').textContent=d.label;
+  document.getElementById('scopeNoteText').textContent=d.note;
+  updateSliderLabels(d.min,d.max);
+  updateBudget(d.default);
+}
+
+// STEPS
+let currentStep=1;
+function goToStep(n){
+  document.getElementById('stepPanel'+currentStep).classList.remove('active');
+  document.getElementById('pill'+currentStep).classList.remove('active');
+  document.getElementById('pill'+currentStep).classList.add('done');
+  currentStep=n;
+  document.getElementById('stepPanel'+n).classList.add('active');
+  document.getElementById('pill'+n).classList.remove('done');
+  document.getElementById('pill'+n).classList.add('active');
+  document.getElementById('appSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ROOM SELECTION
+let selectedRoom='Living Room';
+function selectRoom(el,name){document.querySelectorAll('.room-type-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');selectedRoom=name;}
+
+// ROOM COUNT
+let roomCount=1;
+function changeCount(d){roomCount=Math.max(1,Math.min(10,roomCount+d));document.getElementById('roomCount').textContent=roomCount;}
+
+// BUDGET TIERS
+const tiers=[{max:15000,emoji:'🪔',label:'Essential'},{max:50000,emoji:'⭐',label:'Smart'},{max:150000,emoji:'✦',label:'Premium'},{max:300000,emoji:'💎',label:'Luxury'},{max:Infinity,emoji:'👑',label:'Ultra Luxe'}];
+function updateBudget(val){
+  const n=parseInt(val);
+  document.getElementById('budgetDisplay').textContent='₹'+n.toLocaleString('en-IN');
+  document.getElementById('budgetLabel2').textContent=n.toLocaleString('en-IN');
+  const t=tiers.find(t=>n<=t.max);
+  document.getElementById('tierEmoji').textContent=t.emoji;
+  document.getElementById('tierLabel').textContent=t.label;
+}
+function formatShort(n){if(n>=100000)return'₹'+(n/100000).toFixed(n%100000===0?0:1)+'L';if(n>=1000)return'₹'+(n/1000).toFixed(n%1000===0?0:1)+'K';return'₹'+n;}
+function updateSliderLabels(min,max){
+  document.getElementById('sliderMin').textContent=formatShort(min)+' — Essential';
+  document.getElementById('sliderMax').textContent=formatShort(max)+' — Ultra Luxe';
+}
+
+// VOLUME
+['dimLength','dimWidth','dimHeight'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  const l=parseFloat(document.getElementById('dimLength').value)||0;
+  const w=parseFloat(document.getElementById('dimWidth').value)||0;
+  const h=parseFloat(document.getElementById('dimHeight').value)||0;
+  document.getElementById('volumeDisplay').textContent=l&&w&&h?(l*w*h).toLocaleString('en-IN')+' cu.ft':'— cu.ft';
+}));
+
+// CHIPS
+function toggleChip(btn){btn.classList.toggle('active');}
+
+// UPLOAD
+function handleImageUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const url=URL.createObjectURL(file);
+  document.getElementById('previewImg').src=url;
+  document.getElementById('imgName').textContent=file.name;
+  document.getElementById('uploadIcon').style.display='none';
+  document.getElementById('uploadContent').style.display='none';
+  document.getElementById('uploadPreview').style.display='block';
+}
+const ua=document.getElementById('uploadArea');
+ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('drag-over');});
+ua.addEventListener('dragleave',()=>ua.classList.remove('drag-over'));
+ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))handleImageUpload({target:{files:[f]}});});
+
+// ══════════════════════════════════════════════════════
+//  BACKEND CONFIG
+// ══════════════════════════════════════════════════════
+const API_BASE = 'http://localhost:5000/api';
+const CAT_ICONS = {curtains:'🪟',rugs:'🏺',lamps:'💡',wall_art:'🎨',furniture:'🛋️',accent:'✦',textiles:'✨'};
+const DONUT_COLORS = ['#B8936A','#C9A84C','#5C7A5E','#8B3A2A','#3D5E4A','#6B4F35','#8C5F6E','#3D2E26'];
+const LOADING_STEPS_TEXT = [
+  'YOLOv8 detecting objects in room …',
+  'SAM generating pixel-perfect masks …',
+  'K-Means extracting masked colour palettes …',
+  'CLIP computing style embeddings …',
+  'Places365 classifying room type …',
+];
+
+// ══════════════════════════════════════════════════════
+//  ANALYSIS
+// ══════════════════════════════════════════════════════
+async function startAnalysis() {
+  const ov   = document.getElementById('loadingOverlay');
+  const bar  = document.getElementById('loadingBar');
+  const sids = ['step1','step2','step3','step4','step5'];
+
+  // Update step labels to show real AI steps
+  sids.forEach((sid, i) => {
+    const el = document.getElementById(sid);
+    if (el) el.querySelector('span').textContent = LOADING_STEPS_TEXT[i];
+  });
+
+  ov.classList.add('active');
+  let i = 0;
+  const tick = setInterval(() => {
+    if (i < sids.length - 1) {
+      document.getElementById(sids[i]).classList.add('done');
+      bar.style.width = ((i+1)/sids.length * 75) + '%';
+      i++;
+    }
+  }, 700);
+
+  try {
+    const data = await _callAPI();
+    clearInterval(tick);
+    sids.forEach(s => document.getElementById(s).classList.add('done'));
+    bar.style.width = '100%';
+    await _sleep(400);
+    ov.classList.remove('active');
+    data.success ? (_lastAnalysisData = data, _renderAll(data)) : _showError('Analysis failed: ' + data.error);
+  } catch (err) {
+    clearInterval(tick);
+    ov.classList.remove('active');
+    console.error(err);
+    _showError('Cannot connect to House Muse backend.\n\nRun: cd backend && python app.py\n\n' + err.message);
+  }
+}
+
+async function _callAPI() {
+  const fd = new FormData();
+  const imgFile = document.getElementById('roomImageInput').files[0];
+  if (imgFile) fd.append('image', imgFile);
+  fd.append('room_type', selectedRoom.toLowerCase().replace(/ /g,'_'));
+  fd.append('length',    document.getElementById('dimLength').value || '12');
+  fd.append('width',     document.getElementById('dimWidth').value  || '10');
+  fd.append('height',    document.getElementById('dimHeight').value || '9');
+  const chips = [...document.querySelectorAll('.style-chip.active')].map(c=>c.querySelector('span').textContent);
+  fd.append('styles',    JSON.stringify(chips.length ? chips : ['Japandi']));
+  fd.append('budget',    document.getElementById('budgetSlider').value);
+  fd.append('scope',     currentScope);
+  fd.append('num_rooms', String(roomCount));
+  fd.append('harmony',   'analogous');
+  const res = await fetch(`${API_BASE}/analyse`, { method:'POST', body:fd });
+  if (!res.ok) { const e = await res.json().catch(()=>({error:`HTTP ${res.status}`})); throw new Error(e.error); }
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER ALL
+// ══════════════════════════════════════════════════════
+function _renderAll(data) {
+  const { space, palette, image_analysis, recommendations, meta, object_palette } = data;
+  const rs = document.getElementById('resultsSection');
+  rs.classList.add('active');
+
+  // Room tag
+  const sizeLabel  = space.size_category.charAt(0).toUpperCase() + space.size_category.slice(1);
+  const lightLabel = (image_analysis.lighting.color_temperature||'warm').charAt(0).toUpperCase()
+                   + (image_analysis.lighting.color_temperature||'warm').slice(1);
+  const methodTag  = image_analysis.room_type_method
+    ? ` · classified by ${image_analysis.room_type_method.replace('_',' ')}`
+    : '';
+  document.getElementById('roomTypeText').textContent =
+    `${selectedRoom} · ${lightLabel} ${image_analysis.lighting.condition} light · `+
+    `${meta.wall_area} sqft · ${sizeLabel} room${methodTag}`;
+
+  // AI insight
+  document.getElementById('aiInsight').textContent =
+    [space.color_guidance, palette.lighting_note, space.wallpaper_suitability,
+     palette.object_palette_note].filter(Boolean).join(' ');
+
+  // Lighting badge
+  const lb = document.getElementById('lightingBadge');
+  if (lb) lb.innerHTML =
+    `<svg width="8" height="8" viewBox="0 0 8 8" fill="var(--gold)"><circle cx="4" cy="4" r="4"/></svg>`+
+    `${lightLabel} ${image_analysis.lighting.condition} · `+
+    `${image_analysis.lighting.color_temperature} temperature`;
+
+  _renderObjectPaletteBanner(object_palette);
+  _renderPalette(palette, image_analysis.dominant_colors);
+  _renderStyleSimilarity(image_analysis.style_similarities || {});
+  _renderWallpapers(recommendations.wallpapers);
+  _renderDecor(recommendations.decor_items, meta.budget);
+  _renderDetections(image_analysis.detections || [], image_analysis.object_colors || []);
+  _renderBudget(recommendations.budget_breakdown, recommendations.total_estimated,
+                recommendations.budget_remaining, meta.budget);
+
+  setTimeout(() => rs.scrollIntoView({behavior:'smooth',block:'start'}), 120);
+}
+
+// ── Object-aware palette banner ────────────────────────────────────────────
+function _renderObjectPaletteBanner(op) {
+  const banner = document.getElementById('objectPaletteBanner');
+  if (!banner || !op || !op.object_driven) { if(banner) banner.innerHTML=''; return; }
+
+  const swatches = [
+    {label:'Wall',   color:op.wall_color   ||'#C4A882'},
+    {label:'Accent', color:op.accent_color ||'#8A9E85'},
+    {label:'Ceiling',color:op.ceiling_color||'#F5EFE0'},
+  ];
+
+  banner.style.cssText='margin-bottom:28px;padding:22px 26px;border:1px solid rgba(201,168,76,0.22);background:linear-gradient(135deg,rgba(184,115,51,0.08),rgba(201,168,76,0.05));';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--bright-gold);box-shadow:0 0 6px rgba(226,185,75,0.6);"></div>
+      <span style="font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);">
+        SAM-Masked Object Palette · YOLOv8 + K-Means
+      </span>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:32px;">
+      <div style="flex:1;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;margin-bottom:8px;">
+          Palette driven by your <em style="color:var(--rose-gold);">${(op.anchor_object||'room').replace('_',' ')}</em>
+        </div>
+        <div style="font-size:12px;line-height:1.75;color:rgba(242,235,217,0.5);">${op.object_palette_note||''}</div>
+        ${op.anchor_color?`<div style="display:flex;align-items:center;gap:10px;margin-top:14px;">
+          <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(242,235,217,0.3);">Anchor colour</div>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="width:14px;height:14px;background:${op.anchor_color};border:1px solid rgba(201,168,76,0.2);"></div>
+            <span style="font-size:11px;color:rgba(242,235,217,0.5);">${op.anchor_color}</span>
+          </div></div>`:''}
+      </div>
+      <div style="display:flex;gap:16px;flex-shrink:0;">
+        ${swatches.map(s=>`<div style="text-align:center;">
+          <div style="width:52px;height:52px;background:${s.color};border:1px solid rgba(201,168,76,0.2);margin:0 auto 7px;"></div>
+          <div style="font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(242,235,217,0.4);">${s.label}</div>
+          <div style="font-size:10px;color:rgba(242,235,217,0.6);margin-top:2px;">${s.color}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Palette strips ─────────────────────────────────────────────────────────
+function _renderPalette(palette, dominant) {
+  ['paletteStrip','recoPaletteStrip','colorNameGrid','paletteLabels'].forEach(id=>document.getElementById(id).innerHTML='');
+
+  dominant.forEach(c => {
+    const d=document.createElement('div'); d.className='palette-color'; d.style.background=c.hex;
+    d.innerHTML=`<div class="palette-color-label">${c.hex} · ${c.percentage}%</div>`;
+    document.getElementById('paletteStrip').appendChild(d);
+    const tag=document.createElement('div');
+    tag.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid rgba(201,168,76,0.1);font-size:10px;letter-spacing:0.1em;color:rgba(242,235,217,0.42)';
+    tag.innerHTML=`<span style="display:block;width:9px;height:9px;border-radius:50%;background:${c.hex}"></span>${c.hex}`;
+    document.getElementById('paletteLabels').appendChild(tag);
+  });
+
+  const recoPalette = [
+    {hex:palette.wall_color,   name:'Wall'},
+    {hex:palette.accent_color, name:'Accent'},
+    {hex:palette.ceiling_color,name:'Ceiling'},
+    ...(palette.harmony_colors||[]).slice(0,2).map((h,i)=>({hex:h,name:`Harmony ${i+1}`})),
+  ].slice(0,5);
+
+  recoPalette.forEach(c => {
+    const d=document.createElement('div'); d.className='palette-color'; d.style.background=c.hex;
+    d.innerHTML=`<div class="palette-color-label">${c.name}</div>`;
+    document.getElementById('recoPaletteStrip').appendChild(d);
+    const card=document.createElement('div'); card.style.cssText='border:1px solid rgba(201,168,76,0.07);overflow:hidden;';
+    card.innerHTML=`<div style="height:70px;background:${c.hex}"></div><div style="padding:10px;background:rgba(13,11,9,0.7);">
+      <div style="font-family:Cormorant Garamond,serif;font-size:14px;font-weight:300;">${c.name}</div>
+      <div style="font-size:9px;letter-spacing:0.1em;color:rgba(242,235,217,0.25);margin-top:3px;">${c.hex}</div></div>`;
+    document.getElementById('colorNameGrid').appendChild(card);
+  });
+
+  const pg = document.getElementById('paletteGuidance');
+  if (pg && palette.pattern_guidance) pg.textContent = palette.pattern_guidance;
+}
+
+// ── CLIP style similarity bars ─────────────────────────────────────────────
+function _renderStyleSimilarity(sims) {
+  const el = document.getElementById('styleSimilarityBar');
+  if (!el || !Object.keys(sims).length) { if(el) el.innerHTML=''; return; }
+
+  const sorted = Object.entries(sims).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  el.innerHTML = `
+    <div style="font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;">
+      ✦ CLIP Style Detection
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${sorted.map(([style,score])=>`
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:11px;color:rgba(242,235,217,0.55);">${style}</span>
+            <span style="font-size:11px;color:var(--gold);">${Math.round(score*100)}%</span>
+          </div>
+          <div style="height:2px;background:rgba(201,168,76,0.1);">
+            <div style="height:100%;width:${Math.round(score*100)}%;background:linear-gradient(90deg,var(--antique-gold),var(--bright-gold));transition:width 1s ease;"></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── Wallpapers ─────────────────────────────────────────────────────────────
+function _renderWallpapers(wallpapers) {
+  const grid = document.getElementById('wallpaper-dynamic-grid');
+  grid.innerHTML = '';
+  const countEl = document.getElementById('wallpaperCount');
+  if (countEl) countEl.textContent = `${wallpapers.length} pattern${wallpapers.length!==1?'s':''} — CLIP + colour matched`;
+
+  if (!wallpapers.length) {
+    grid.innerHTML='<div style="color:rgba(242,235,217,0.4);padding:40px 0;">No wallpapers matched. Try broadening style or increasing budget.</div>';
+    return;
+  }
+  wallpapers.forEach((w,idx) => {
+    const inBudget = w.budget_label==='In Budget';
+    const card = document.createElement('div');
+    card.className = 'wallpaper-swatch';
+    card.style.background = w.base_color;
+    card.innerHTML=`
+      <div class="wallpaper-info">
+        <div class="wallpaper-name">${w.name}</div>
+        <div class="wallpaper-price">₹${w.price_sqft}/sqft · Est. ₹${w.estimated_total.toLocaleString('en-IN')}</div>
+        <div style="font-size:9px;color:rgba(242,235,217,0.45);margin-top:3px;letter-spacing:0.1em;">${w.pattern_type} · ${w.scale}</div>
+      </div>
+      <div style="position:absolute;top:10px;left:10px;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;background:rgba(13,11,9,0.82);padding:4px 8px;color:${inBudget?'var(--champagne)':'rgba(242,235,217,0.3)'};border:1px solid ${inBudget?'rgba(201,168,76,0.22)':'rgba(255,255,255,0.08)'};">
+        ${inBudget?'✓ ':''}${w.budget_label}</div>
+      <div style="position:absolute;top:10px;right:10px;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;background:rgba(13,11,9,0.82);padding:4px 8px;color:rgba(242,235,217,0.5);">
+        ${Math.round(w.similarity_score*100)}% CLIP</div>
+      ${idx===0?`<div style="position:absolute;bottom:52px;right:10px;background:linear-gradient(135deg,var(--antique-gold),var(--bright-gold));color:var(--obsidian);font-size:8px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;padding:4px 8px;">★ Top Pick</div>`:''}`;
+    grid.appendChild(card);
+  });
+}
+
+// ── Décor ──────────────────────────────────────────────────────────────────
+function _renderDecor(items, budget) {
+  document.getElementById('budgetLabel2').textContent = parseInt(budget).toLocaleString('en-IN');
+  const grid = document.getElementById('recoGrid');
+  grid.innerHTML = '';
+  items.forEach(item => {
+    const inBudget = item.budget_label==='In Budget';
+    const card = document.createElement('div'); card.className='reco-card';
+    card.innerHTML=`
+      <div class="reco-img" style="font-size:40px;background:${item.color}22;">
+        ${CAT_ICONS[item.category]||'🏠'}
+        <div class="reco-badge">${Math.round(item.similarity_score*100)}% CLIP</div>
+      </div>
+      <div class="reco-body">
+        <div class="reco-category">${item.category.replace('_',' ')}</div>
+        <div class="reco-name">${item.name}</div>
+        <div style="font-size:9px;color:rgba(242,235,217,0.3);margin-bottom:7px;letter-spacing:0.08em;">${item.style.slice(0,2).join(' · ')}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;">
+          <div style="width:10px;height:10px;background:${item.color};border-radius:50%;border:1px solid rgba(201,168,76,0.2);flex-shrink:0;"></div>
+          <span style="font-size:9px;color:rgba(242,235,217,0.3);">Colour match: ${Math.round((item.colour_score||0)*100)}%</span>
+        </div>
+        <div class="reco-price">
+          <span class="price-tag">₹${item.price.toLocaleString('en-IN')}</span>
+          <span class="price-match" style="color:${inBudget?'var(--sage)':'var(--rose-gold)'};">${inBudget?'✓ Budget':'⚠ Over'}</span>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ── Objects Detected (YOLOv8 + SAM) ───────────────────────────────────────
+function _renderDetections(detections, objectColors) {
+  const panel = document.getElementById('objectDetectionPanel');
+  if (!panel) return;
+  panel.innerHTML = '';
+
+  if (!detections.length) {
+    panel.innerHTML='<div style="padding:48px 0;text-align:center;color:rgba(242,235,217,0.3);font-size:14px;">No interior objects detected. Try a clearer room photo.</div>';
+    return;
+  }
+
+  const colorLookup = {};
+  (objectColors||[]).forEach(oc => { colorLookup[oc.interior] = oc; });
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText='margin-bottom:28px;display:flex;align-items:baseline;justify-content:space-between;';
+  hdr.innerHTML=`<div>
+    <div style="font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">YOLOv8 + SAM · IKEA + ADE20K fine-tuned</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;">${detections.length} object${detections.length!==1?'s':''} detected</div>
+  </div>
+  <div style="font-size:11px;color:rgba(242,235,217,0.3);">Threshold: ${Math.round(0.40*100)}% confidence</div>`;
+  panel.appendChild(hdr);
+
+  const grid = document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;';
+
+  detections.forEach(det => {
+    const oc       = colorLookup[det.interior];
+    const objCols  = oc?.colors || [];
+    const maskUsed = oc?.mask_used || false;
+    const pct      = Math.round(det.confidence*100);
+    const role     = (det.design_role||'detected object').replace('_',' ');
+
+    const swatchHTML = objCols.length
+      ? `<div style="margin-top:12px;">
+          <div style="display:flex;gap:5px;margin-bottom:3px;">
+            ${objCols.map(c=>`<div title="${c.hex}" style="flex:1;height:20px;background:${c.hex};border:1px solid rgba(201,168,76,0.1);"></div>`).join('')}
+          </div>
+          <div style="display:flex;gap:5px;">
+            ${objCols.map(c=>`<div style="flex:1;text-align:center;font-size:7px;color:rgba(242,235,217,0.28);">${c.percentage}%</div>`).join('')}
+          </div>
+          <div style="margin-top:5px;font-size:8px;color:${maskUsed?'var(--sage)':'rgba(242,235,217,0.25)'};letter-spacing:0.15em;">
+            ${maskUsed?'✓ SAM mask':'bbox crop'}
+          </div>
+        </div>`
+      : '';
+
+    const card = document.createElement('div');
+    card.style.cssText='border:1px solid rgba(201,168,76,0.1);background:rgba(13,11,9,0.6);padding:18px;transition:all 0.3s;';
+    card.onmouseenter=()=>{card.style.borderColor='rgba(201,168,76,0.3)';card.style.transform='translateY(-2px)';};
+    card.onmouseleave=()=>{card.style.borderColor='rgba(201,168,76,0.1)';card.style.transform='translateY(0)';};
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--rose-gold);margin-bottom:5px;">${role}</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:300;text-transform:capitalize;">${det.interior.replace('_',' ')}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--bright-gold);">${pct}%</div>
+          <div style="font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(242,235,217,0.25);">confidence</div>
+        </div>
+      </div>
+      <div style="height:1px;background:rgba(201,168,76,0.1);">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--antique-gold),var(--bright-gold));"></div>
+      </div>
+      ${swatchHTML}`;
+    grid.appendChild(card);
+  });
+
+  panel.appendChild(grid);
+
+  // SAM summary
+  const samCount = (objectColors||[]).filter(o=>o.mask_used).length;
+  if (samCount > 0) {
+    const note = document.createElement('div');
+    note.style.cssText='margin-top:24px;padding:14px 18px;border:1px solid rgba(201,168,76,0.08);background:rgba(201,168,76,0.03);font-size:12px;line-height:1.75;color:rgba(242,235,217,0.4);';
+    note.innerHTML=`<span style="color:var(--gold);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;display:block;margin-bottom:5px;">✦ SAM masking</span>
+      ${samCount} of ${objectColors.length} objects used pixel-perfect SAM masks for colour extraction — no background bleed.`;
+    panel.appendChild(note);
+  }
+}
+
+// ── Budget donut ───────────────────────────────────────────────────────────
+function _renderBudget(breakdown, totalEst, remaining, budget) {
+  document.getElementById('totalBudgetDisplay').textContent='₹'+totalEst.toLocaleString('en-IN');
+  document.getElementById('budgetSaved').textContent = remaining>=0
+    ? `You save ₹${remaining.toLocaleString('en-IN')} from your total budget ✦`
+    : `₹${Math.abs(remaining).toLocaleString('en-IN')} over budget — consider adjusting scope`;
+
+  const canvas=document.getElementById('budgetChart'), ctx=canvas.getContext('2d');
+  const entries=Object.entries(breakdown), total=entries.reduce((s,[,v])=>s+v,0);
+  const cx=150,cy=150,R=112,r=72;
+  ctx.clearRect(0,0,300,300);
+  let angle=-Math.PI/2;
+  entries.forEach(([,v],i)=>{
+    const sweep=(v/total)*2*Math.PI;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,angle,angle+sweep);ctx.arc(cx,cy,r,angle+sweep,angle,true);ctx.closePath();
+    ctx.fillStyle=DONUT_COLORS[i%DONUT_COLORS.length];ctx.fill();ctx.strokeStyle='#0D0B09';ctx.lineWidth=2.5;ctx.stroke();
+    angle+=sweep;
+  });
+  ctx.fillStyle='#F2EBD9';ctx.font='300 23px Cormorant Garamond';ctx.textAlign='center';
+  ctx.fillText('₹'+totalEst.toLocaleString('en-IN'),cx,cy+5);
+  ctx.fillStyle='rgba(242,235,217,0.28)';ctx.font='9px DM Sans';ctx.fillText('ESTIMATED TOTAL',cx,cy+21);
+
+  const bd=document.getElementById('budgetBreakdown'); bd.innerHTML='';
+  entries.forEach(([cat,amt],i)=>{
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;justify-content:space-between;';
+    row.innerHTML=`<div style="display:flex;align-items:center;gap:9px;">
+      <div style="width:9px;height:9px;border-radius:50%;background:${DONUT_COLORS[i%DONUT_COLORS.length]};flex-shrink:0;"></div>
+      <span style="font-size:13px;color:rgba(242,235,217,0.52);text-transform:capitalize;">${cat.replace('_',' ')}</span></div>
+      <span style="font-family:Cormorant Garamond,serif;font-size:18px;color:var(--cream);">₹${amt.toLocaleString('en-IN')}</span>`;
+    bd.appendChild(row);
+  });
+}
+
+// ── Mock fallback (when backend not running) ───────────────────────────────
+function _useMockData() {
+  const mockPalette={wall_color:'#C4A882',accent_color:'#8A9E85',ceiling_color:'#E8D5A3',harmony_colors:['#C67C52','#D4A5A0'],pattern_guidance:'Medium-scale patterns work well.',lighting_note:'Good natural light.',style_note:''};
+  const mockDominant=[{hex:'#B8936A',rgb:[184,147,106],percentage:40},{hex:'#5C7A5E',rgb:[92,122,94],percentage:25},{hex:'#8B3A2A',rgb:[139,58,42],percentage:20},{hex:'#8C5F6E',rgb:[140,95,110],percentage:10},{hex:'#1C1713',rgb:[28,23,19],percentage:5}];
+  const mockWP=[{name:'Antique Gold Lattice',base_color:'#B8936A',price_sqft:480,estimated_total:9600,budget_label:'In Budget',pattern_type:'geometric',scale:'small',similarity_score:0.92},{name:'Sage Botanical',base_color:'#5C7A5E',price_sqft:320,estimated_total:6400,budget_label:'In Budget',pattern_type:'floral',scale:'medium',similarity_score:0.87},{name:'Terracotta Block Print',base_color:'#8B3A2A',price_sqft:260,estimated_total:5200,budget_label:'In Budget',pattern_type:'handprint',scale:'small',similarity_score:0.84}];
+  const mockDecor=[{name:'Linen Japandi Sofa',category:'furniture',style:['Japandi'],color:'#C4A882',price:18500,similarity_score:0.91,colour_score:0.88,budget_label:'In Budget'},{name:'Rattan Pendant Lamp',category:'lamps',style:['Bohemian'],color:'#B8936A',price:2200,similarity_score:0.88,colour_score:0.81,budget_label:'In Budget'},{name:'Block Print Dhurrie',category:'rugs',style:['Contemporary Indian'],color:'#8A9E85',price:4800,similarity_score:0.85,colour_score:0.79,budget_label:'In Budget'},{name:'Madhubani Triptych',category:'wall_art',style:['Vintage Indian'],color:'#C67C52',price:2400,similarity_score:0.82,colour_score:0.75,budget_label:'In Budget'},{name:'Monstera + Hammered Pot',category:'accent',style:['Cottagecore'],color:'#5C7A5E',price:1200,similarity_score:0.80,colour_score:0.72,budget_label:'In Budget'},{name:'Sheesham Wood Shelf',category:'furniture',style:['Mid-Century'],color:'#6B4F35',price:5600,similarity_score:0.78,colour_score:0.70,budget_label:'In Budget'}];
+  const mockDet=[{interior:'sofa',confidence:0.89,design_role:'anchor_piece',box:[80,100,450,380]},{interior:'plant',confidence:0.72,design_role:'natural_accent',box:[600,200,720,400]},{interior:'lamp',confidence:0.65,design_role:'accent_piece',box:[30,50,120,300]}];
+  const mockObjCols=[{interior:'sofa',mask_used:true,colors:[{hex:'#B8936A',percentage:55},{hex:'#8B6F4E',percentage:30},{hex:'#E2C89A',percentage:15}],design_role:'anchor_piece'}];
+  const mockSims={Japandi:0.78,Bohemian:0.61,'Contemporary Indian':0.55,'Mid-Century':0.48,'Dark Academia':0.32};
+  const mockObjPalette={object_driven:true,anchor_object:'sofa',anchor_color:'#B8936A',wall_color:'#E2C89A',accent_color:'#5C7A5E',ceiling_color:'#F5EFE0',object_palette_note:"Your sofa's warm caramel tone drives a lighter, linen-toned wall palette.",palette_strategy:'contrast_lighten'};
+  const budget=parseInt(document.getElementById('budgetSlider').value)||50000;
+  const l=document.getElementById('dimLength').value||'12', w=document.getElementById('dimWidth').value||'10', h=document.getElementById('dimHeight').value||'9';
+
+  document.getElementById('roomTypeText').textContent=`${selectedRoom} · Warm natural light · ${l}×${w}×${h} ft · classified by mock`;
+  document.getElementById('aiInsight').textContent='Your space has warm undertones. SAM-extracted sofa colour drives a lighter wall palette. CLIP detected Japandi aesthetic at 78% similarity.';
+  document.getElementById('resultsSection').classList.add('active');
+  _lastAnalysisData = {
+    palette:        mockPalette,
+    image_analysis: { dominant_colors: mockDominant, lighting: {condition:'bright'}, style_similarities: mockSims, object_colors: mockObjCols, detections: mockDet },
+    object_palette: mockObjPalette,
+    space:          { size_category:'medium', color_guidance:'', wallpaper_suitability:'', lighting_suggestions:[], layout_tips:[] },
+    meta:           { styles: ['Japandi'], budget: budget, wall_area: 440 },
+  };
+
+  _renderObjectPaletteBanner(mockObjPalette);
+  _renderPalette(mockPalette, mockDominant);
+  _renderStyleSimilarity(mockSims);
+  _renderWallpapers(mockWP);
+  _renderDecor(mockDecor, budget);
+  _renderDetections(mockDet, mockObjCols);
+  _renderBudget({wallpaper:7500,furniture:21000,curtains:4000,rugs:5000,lamps:4000,wall_art:3500,accent:3000,textiles:3000}, 51500, budget-51500, budget);
+  setTimeout(()=>document.getElementById('resultsSection').scrollIntoView({behavior:'smooth',block:'start'}),120);
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+const _sleep = ms => new Promise(r=>setTimeout(r,ms));
+function _showError(msg){
+  const useMock=confirm(msg+'\n\n──────────────────────────\nPreview with mock data instead?\n(OK = mock, Cancel = dismiss)');
+  if(useMock) _useMockData();
+}
+
+// ── IMAGE GENERATION ───────────────────────────────────────────────────────
+let _lastAnalysisData = null;
+let _nVariants = 1;
+
+function setVariants(n, btn) {
+  _nVariants = n;
+  document.querySelectorAll('.variant-btn').forEach(b => {
+    b.style.background = 'transparent';
+    b.style.borderColor = 'rgba(201,168,76,0.2)';
+    b.style.color = 'rgba(242,235,217,0.45)';
+  });
+  btn.style.background = 'rgba(201,168,76,0.1)';
+  btn.style.borderColor = 'rgba(201,168,76,0.4)';
+  btn.style.color = 'var(--gold)';
+}
+
+async function generateRoomImage() {
+  if (!_lastAnalysisData) { alert('Run analysis first.'); return; }
+  const loading=document.getElementById('imgGenLoading'),grid=document.getElementById('generatedImagesGrid'),errEl=document.getElementById('imgGenError'),bar=document.getElementById('imgGenBar'),btn=document.getElementById('generateImgBtn');
+  loading.style.display='block'; grid.style.display='none'; errEl.style.display='none';
+  btn.textContent='Generating…'; btn.style.opacity='0.6';
+  let prog=0; const pt=setInterval(()=>{prog=Math.min(prog+1.2,88);bar.style.width=prog+'%';},300);
+  try {
+    const d=_lastAnalysisData, pal=d.palette||{}, ia=d.image_analysis||{};
+    const fd=new FormData();
+    const imgFile=document.getElementById('roomImageInput').files[0];
+    if(imgFile) fd.append('image',imgFile);
+    fd.append('room_type', selectedRoom.toLowerCase().replace(/ /g,'_'));
+    fd.append('styles',    JSON.stringify(d.meta?.styles||['Japandi']));
+    fd.append('wall_color',    pal.wall_color   ||'#E2C89A');
+    fd.append('accent_color',  pal.accent_color ||'#8A9E85');
+    fd.append('dominant_colors', JSON.stringify(ia.dominant_colors||[]));
+    fd.append('size_category',   d.space?.size_category||'medium');
+    fd.append('lighting',        ia.lighting?.condition||'bright');
+    fd.append('detections',      JSON.stringify(ia.detections||[]));
+    fd.append('n_variants', String(_nVariants));
+    const res=await fetch(`${API_BASE}/generate-image`,{method:'POST',body:fd});
+    const data=await res.json();
+    clearInterval(pt); bar.style.width='100%'; loading.style.display='none';
+    if(data.caption) _showBLIPCaption(data.caption, data.method);
+    if(!data.success && !data.variants?.some(v=>v.success)) {
+      errEl.innerHTML=`<strong>Failed:</strong> ${data.variants?.[0]?.error||data.error||'Unknown'}<br><br>
+        <strong>Setup needed:</strong><br>
+        • <strong>Image generation:</strong> <a href="https://replicate.com" target="_blank" style="color:var(--gold)">replicate.com</a> → get free token → add <code style="background:rgba(201,168,76,0.1);padding:2px 5px">REPLICATE_API_TOKEN=xxx</code> to <code style="background:rgba(201,168,76,0.1);padding:2px 5px">backend/.env</code><br>
+        • <strong>BLIP captions:</strong> <a href="https://huggingface.co" target="_blank" style="color:var(--gold)">huggingface.co</a> → free token → add <code style="background:rgba(201,168,76,0.1);padding:2px 5px">HF_API_TOKEN=xxx</code> to <code style="background:rgba(201,168,76,0.1);padding:2px 5px">backend/.env</code><br>
+        • Restart server: <code style="background:rgba(201,168,76,0.1);padding:2px 5px">python app.py</code>`;
+      errEl.style.display='block';
+    } else { _renderGeneratedImages(data.variants||[]); }
+  } catch(err) { clearInterval(pt); loading.style.display='none'; errEl.innerHTML=`Connection error: ${err.message}`; errEl.style.display='block'; }
+  btn.textContent='Generate Image'; btn.style.opacity='1';
+}
+
+function _showBLIPCaption(caption, method) {
+  let el=document.getElementById('blipCaptionBox');
+  if(!el){el=document.createElement('div');el.id='blipCaptionBox';el.style.cssText='margin-bottom:16px;padding:14px 18px;border:1px solid rgba(201,168,76,0.15);background:rgba(201,168,76,0.04);';
+    const grid=document.getElementById('generatedImagesGrid'); grid.parentNode.insertBefore(el,grid);}
+  const lbl=method==='blip'?'✦ BLIP Encoder-Decoder Caption':'✦ Structured Prompt (no image)';
+  el.innerHTML=`<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">${lbl}</div>
+    <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:14px;color:rgba(242,235,217,0.7);line-height:1.65;">"${caption}"</div>
+    <div style="font-size:9px;color:rgba(242,235,217,0.28);margin-top:6px;letter-spacing:0.1em;">Fed into Stable Diffusion XL to generate the styled image below.</div>`;
+}
+
+function _renderGeneratedImages(variants) {
+  const grid=document.getElementById('generatedImagesGrid');
+  grid.innerHTML=''; grid.style.display='grid';
+  variants.forEach(v=>{
+    if(!v.success) return;
+    const imgSrc=v.image_url||`data:image/png;base64,${v.image_b64}`;
+    const card=document.createElement('div');
+    card.style.cssText='border:1px solid rgba(201,168,76,0.15);overflow:hidden;background:rgba(13,11,9,0.6);';
+    const methodBadge=v.prompt_method==='blip'?'BLIP + SD':'SD Prompt';
+    card.innerHTML=`<div style="position:relative;">
+      <img src="${imgSrc}" alt="Generated room" style="width:100%;display:block;aspect-ratio:4/3;object-fit:cover;">
+      <div style="position:absolute;top:10px;left:10px;background:rgba(13,11,9,0.85);padding:5px 10px;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:var(--champagne);border:1px solid rgba(201,168,76,0.2);">${v.variant_label||'Room View'}</div>
+      <div style="position:absolute;top:10px;right:10px;background:rgba(201,168,76,0.15);padding:4px 8px;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);">${methodBadge}</div>
+      <a href="${imgSrc}" download="house-muse-room-${v.variant||1}.png" target="_blank" style="position:absolute;bottom:10px;right:10px;background:rgba(201,168,76,0.92);color:var(--obsidian);padding:6px 14px;font-size:9px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;text-decoration:none;">↓ Save</a>
+    </div>
+    <div style="padding:13px 15px;font-size:9px;letter-spacing:0.12em;color:rgba(242,235,217,0.28);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(v.prompt||'').substring(0,90)}…</div>`;
+    grid.appendChild(card);
+  });
+}
+
+function switchTab(btn,id){
+  document.querySelectorAll('.result-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+function buildPalette(){}function buildDecor(){}function buildBudgetChart(){}
+function showResults(){_useMockData();}
+
+// ══════════════════════════════════════════════════════
+//  AUTH + DASHBOARD
+// ══════════════════════════════════════════════════════
+
+// Simple in-memory user store (replace with real backend later)
+let _currentUser = null;
+const _users = JSON.parse(localStorage.getItem('hm_users') || '[]');
+const _activity = JSON.parse(localStorage.getItem('hm_activity') || '[]');
+
+function _saveUsers(){ localStorage.setItem('hm_users', JSON.stringify(_users)); }
+function _saveActivity(){ localStorage.setItem('hm_activity', JSON.stringify(_activity)); }
+function _logActivity(txt){
+  _activity.unshift({ text: txt, time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) });
+  if(_activity.length > 20) _activity.pop();
+  _saveActivity();
+}
+
+// ── Sign In Modal ──────────────────────────────────────────────────────────
+function openSignIn(){
+  if(_currentUser){ openDashboard(); return; }
+  document.getElementById('signInModal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function closeSignIn(){
+  document.getElementById('signInModal').style.display='none';
+  document.body.style.overflow='';
+}
+function switchAuthTab(tab){
+  document.getElementById('tabSignIn').classList.toggle('active', tab==='signin');
+  document.getElementById('tabSignUp').classList.toggle('active', tab==='signup');
+  document.getElementById('formSignIn').style.display = tab==='signin'?'block':'none';
+  document.getElementById('formSignUp').style.display = tab==='signup'?'block':'none';
+}
+
+function doSignIn(){
+  const email = document.getElementById('siEmail').value.trim();
+  const pass  = document.getElementById('siPassword').value;
+  const err   = document.getElementById('siErr');
+  const user  = _users.find(u => u.email===email && u.password===pass);
+  if(!user){ err.style.display='block'; return; }
+  err.style.display='none';
+  _currentUser = user;
+  _afterLogin();
+}
+
+function doSignUp(){
+  const name  = document.getElementById('suName').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pass  = document.getElementById('suPassword').value;
+  const err   = document.getElementById('suErr');
+  if(!name || !email || pass.length < 6){ err.style.display='block'; return; }
+  if(_users.find(u=>u.email===email)){ err.textContent='Email already registered.'; err.style.display='block'; return; }
+  err.style.display='none';
+  const user = { name, email, password: pass, joined: new Date().toLocaleDateString('en-IN') };
+  _users.push(user);
+  _saveUsers();
+  _currentUser = user;
+  _logActivity(`Account created — welcome to House Muse`);
+  _afterLogin();
+}
+
+function doGoogleSignIn(){
+  // Simulated Google sign-in — in production connect to Firebase Auth
+  const user = { name:'Alisha', email:'alisha@gmail.com', password:'', joined: new Date().toLocaleDateString('en-IN') };
+  if(!_users.find(u=>u.email===user.email)){ _users.push(user); _saveUsers(); }
+  _currentUser = user;
+  _logActivity(`Signed in with Google`);
+  _afterLogin();
+}
+
+function _afterLogin(){
+  closeSignIn();
+  _updateNavForUser();
+  openDashboard();
+}
+
+function doSignOut(){
+  _currentUser = null;
+  closeDashboard();
+  _updateNavForUser();
+}
+
+function _updateNavForUser(){
+  const btn = document.getElementById('navAuthBtn');
+  if(_currentUser){
+    const initials = _currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    btn.textContent = initials;
+    btn.style.cssText='background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.45);color:var(--gold);padding:8px 16px;font-family:Cormorant Garamond,serif;font-size:14px;letter-spacing:0.1em;cursor:none;transition:all 0.3s;';
+  } else {
+    btn.textContent = 'Sign In';
+    btn.style.cssText='';
+  }
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function openDashboard(){
+  if(!_currentUser){ openSignIn(); return; }
+  _renderDashboard();
+  document.getElementById('dashboardModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+function closeDashboard(){
+  document.getElementById('dashboardModal').style.display='none';
+  document.body.style.overflow='';
+}
+
+function _renderDashboard(){
+  if(!_currentUser) return;
+  const firstName = _currentUser.name.split(' ')[0];
+  const initials  = _currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const hour = new Date().getHours();
+  const greetWord = hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+
+  document.getElementById('dbGreeting').textContent = `${greetWord}, ${firstName} ✦`;
+  document.getElementById('dbUserName').textContent  = _currentUser.name;
+  document.getElementById('dbAvatar').textContent    = initials;
+
+  // Projects — pulled from saved analysis sessions
+  const projects = JSON.parse(localStorage.getItem('hm_projects')||'[]');
+  const projEl   = document.getElementById('dbProjects');
+  if(!projects.length){
+    projEl.innerHTML='<div class="db-empty">No projects yet — start your first design above</div>';
+  } else {
+    projEl.innerHTML = projects.slice(0,4).map(p=>`
+      <div class="db-proj">
+        <svg width="44" height="34" viewBox="0 0 44 34"><rect width="44" height="34" fill="#2a1f0e"/><rect x="4" y="16" width="16" height="14" fill="#3a2e1e"/><rect x="24" y="20" width="16" height="10" fill="#3a2e1e"/></svg>
+        <div>
+          <div class="db-proj-name">${p.room} — ${p.style}</div>
+          <div class="db-proj-meta">${p.date}</div>
+        </div>
+        <span class="db-badge badge-done">DONE</span>
+      </div>`).join('');
+  }
+
+  // Palettes
+  const palettes = JSON.parse(localStorage.getItem('hm_palettes')||'[]');
+  const palEl    = document.getElementById('dbPalettes');
+  if(!palettes.length){
+    palEl.innerHTML='<div class="db-empty">No palettes saved yet — run an analysis to get started</div>';
+  } else {
+    palEl.innerHTML = palettes.slice(0,4).map(p=>`
+      <div class="db-swatch-row">
+        ${p.colors.map(c=>`<div class="db-swatch" style="background:${c}"></div>`).join('')}
+        <div style="margin-left:6px">
+          <div style="font-size:12px;color:#c9a96e;">${p.name}</div>
+          <div style="font-size:10px;color:#3a3028;">${p.style}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Activity
+  const actEl = document.getElementById('dbActivity');
+  if(!_activity.length){
+    actEl.innerHTML='<div class="db-empty">Your activity will appear here</div>';
+  } else {
+    actEl.innerHTML = _activity.slice(0,6).map(a=>`
+      <div class="db-act">
+        <div class="db-act-dot"></div>
+        <div>
+          <div class="db-act-txt">${a.text}</div>
+          <div class="db-act-time">${a.time}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+// Save project after analysis
+const _origRenderAll = typeof _renderAll === 'function' ? _renderAll : null;
+function _saveProjectAfterAnalysis(data){
+  if(!_currentUser) return;
+  const projects = JSON.parse(localStorage.getItem('hm_projects')||'[]');
+  projects.unshift({
+    room:  selectedRoom,
+    style: (data.meta?.styles||['Japandi'])[0],
+    date:  new Date().toLocaleDateString('en-IN'),
+  });
+  if(projects.length>10) projects.pop();
+  localStorage.setItem('hm_projects', JSON.stringify(projects));
+
+  // Save palette
+  const pal = data.palette||{};
+  const palettes = JSON.parse(localStorage.getItem('hm_palettes')||'[]');
+  palettes.unshift({
+    name:   `${selectedRoom} Palette`,
+    style:  (data.meta?.styles||['Japandi'])[0],
+    colors: [pal.wall_color,pal.accent_color,pal.ceiling_color,...(pal.harmony_colors||[])].filter(Boolean).slice(0,4),
+  });
+  if(palettes.length>12) palettes.pop();
+  localStorage.setItem('hm_palettes', JSON.stringify(palettes));
+
+  _logActivity(`Analysed <strong>${selectedRoom}</strong> — ${(data.meta?.styles||['Japandi'])[0]} style`);
+}
+
+// Hook into existing _renderAll to auto-save
+const __origRenderAll = window._renderAll;
+window._renderAll = function(data){
+  __origRenderAll && __origRenderAll(data);
+  _saveProjectAfterAnalysis(data);
+};
+
+// Dashboard chip helpers
+function dbSelectChip(el,type){
+  const container = type==='room'?'dbRoomChips':'dbStyleChips';
+  const cls       = type==='room'?'db-chip':'db-style';
+  document.querySelectorAll('#'+container+' .'+cls).forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function dbQuickGenerate(){
+  const room  = document.querySelector('#dbRoomChips .db-chip.sel')?.textContent||'Living Room';
+  const style = document.querySelector('#dbStyleChips .db-style.sel')?.textContent||'Japandi';
+  closeDashboard();
+  document.querySelectorAll('.room-type-card').forEach(c=>{
+    if(c.querySelector('.room-type-name')?.textContent===room) c.click();
+  });
+  document.querySelectorAll('.style-chip').forEach(c=>{
+    if(c.querySelector('span')?.textContent===style) c.classList.add('active');
+  });
+  document.querySelector('.app-section').scrollIntoView({behavior:'smooth'});
+}
+
+// Close modals on backdrop click
+document.getElementById('signInModal').addEventListener('click',function(e){
+  if(e.target===this) closeSignIn();
+});
+
+// Check if already logged in on page load
+(function(){
+  const saved = localStorage.getItem('hm_session');
+  if(saved){
+    _currentUser = JSON.parse(saved);
+    _updateNavForUser();
+  }
+})();
+</script>
+</body>
+</html>
