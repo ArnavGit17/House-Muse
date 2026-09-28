@@ -230,13 +230,35 @@ def generate_image():
             image_file       = request.files.get("image")
             image_bytes      = image_file.read() if image_file else None
             room_type        = request.form.get("room_type",       "living_room")
-            styles           = json.loads(request.form.get("styles", '["Japandi"]'))
+            styles_raw       = request.form.get("styles") or request.form.get("style", '["Japandi"]')
+            if isinstance(styles_raw, str):
+                try:
+                    styles   = json.loads(styles_raw)
+                except Exception:
+                    styles   = [styles_raw]
+            else:
+                styles       = styles_raw or ["Japandi"]
+            if not isinstance(styles, list):
+                styles       = [styles]
+
             wall_color       = request.form.get("wall_color",      "#E2C89A")
             accent_color     = request.form.get("accent_color",    "#8A9E85")
-            dominant_colors  = json.loads(request.form.get("dominant_colors", "[]"))
+
+            dominant_colors_raw = request.form.get("dominant_colors", "[]")
+            try:
+                dominant_colors = json.loads(dominant_colors_raw) if isinstance(dominant_colors_raw, str) else dominant_colors_raw
+            except Exception:
+                dominant_colors = []
+
             size_category    = request.form.get("size_category",   "medium")
             lighting         = request.form.get("lighting",        "bright")
-            detections       = json.loads(request.form.get("detections", "[]"))
+
+            detections_raw   = request.form.get("detections", "[]")
+            try:
+                detections   = json.loads(detections_raw) if isinstance(detections_raw, str) else detections_raw
+            except Exception:
+                detections   = []
+
             n_variants       = int(request.form.get("n_variants",  1))
 
         # ── Step 1+2: BLIP caption → prompt ────────────────────────────────
@@ -262,8 +284,9 @@ def generate_image():
             print(f"[Generate] BLIP caption: {caption}")
 
         # ── Step 3: Pollinations.AI (Stability AI fallback) ─────────────────
+        chosen_style = styles[0] if styles else "contemporary_indian"
         if n_variants == 1:
-            result   = generate_room_image(positive, negative)
+            result   = generate_room_image(positive, negative, image_input=image_bytes, style=chosen_style)
             variants = [{
                 **result,
                 "variant":       1,
@@ -281,7 +304,7 @@ def generate_image():
             variants = []
             for i in range(min(n_variants, 3)):
                 extra_pos = f"{positive}, {notes[i]}"
-                r = generate_room_image(extra_pos, negative)
+                r = generate_room_image(extra_pos, negative, image_input=image_bytes, style=chosen_style)
                 variants.append({
                     **r,
                     "variant":       i + 1,

@@ -81,20 +81,25 @@ class GenerateImageView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        project_id = request.data.get("project_id")
+        project = None
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id, owner=request.user)
+            except Project.DoesNotExist:
+                project = None
+
+        source_image = project.source_image if (project and project.source_image) else None
+
         try:
-            result = generate_room_image(request.data)
+            result = generate_room_image(request.data, image_file=source_image)
         except MLServiceError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        project_id = request.data.get("project_id")
-        if project_id and result.get("success"):
-            try:
-                project = Project.objects.get(id=project_id, owner=request.user)
-                variants = result.get("variants", [])
-                if variants:
-                    project.generated_image_url = variants[0].get("image_url")
-                    project.save(update_fields=["generated_image_url"])
-            except Project.DoesNotExist:
-                pass
+        if project and result.get("success"):
+            variants = result.get("variants", [])
+            if variants:
+                project.generated_image_url = variants[0].get("image_url")
+                project.save(update_fields=["generated_image_url"])
 
         return Response(result)

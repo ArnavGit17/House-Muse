@@ -12,12 +12,15 @@ import base64
 import requests
 from urllib.parse import quote
 
-# ── Credentials (Pollinations needs none) ─────────────────────────────────────
+# ── Credentials ───────────────────────────────────────────────────────────────
 STABILITY_API_KEY = os.environ.get("STABILITY_API_KEY", "").strip()
+HF_SPACE_ID       = os.environ.get("HF_SPACE_ID", "").strip()
+HF_API_TOKEN      = os.environ.get("HF_API_TOKEN") or os.environ.get("HF_TOKEN")
 
 if not STABILITY_API_KEY:
     print("[Generator] INFO: STABILITY_API_KEY not set — Stability AI fallback disabled.")
-    print("[Generator] INFO: Using Pollinations.AI as sole backend (no key required).")
+if not HF_SPACE_ID:
+    print("[Generator] INFO: HF_SPACE_ID not set — HF Space generation disabled.")
 
 # ── Room visual style map (imported by caption_engine) ────────────────────────
 ROOM_VISUAL_MAP = {
@@ -128,11 +131,42 @@ def _generate_via_stability(positive_prompt: str, negative_prompt: str) -> dict:
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
-def generate_room_image(positive_prompt: str, negative_prompt: str = "") -> dict:
+def generate_room_image(
+    positive_prompt: str,
+    negative_prompt: str = "",
+    image_input=None,
+    style: str = "contemporary_indian",
+) -> dict:
     """
-    1. Try Pollinations.AI first  — free, no key, good quality
-    2. Fall back to Stability AI  — free 25 credits/month, needs STABILITY_API_KEY
+    1. Try Hugging Face Space (SDXL + ControlNet + LoRA) if image_input and HF_SPACE_ID are available
+    2. Try Pollinations.AI first  — free, no key, good quality
+    3. Fall back to Stability AI  — free 25 credits/month, needs STABILITY_API_KEY
     """
+    if image_input and HF_SPACE_ID:
+        try:
+            from modules.hf_space_client import call_hf_space_redesign
+            print(f"[Generator] Calling HF Space '{HF_SPACE_ID}' with input image...")
+            hf_res = call_hf_space_redesign(
+                space_id=HF_SPACE_ID,
+                image_input=image_input,
+                style=style,
+                prompt=positive_prompt,
+                negative_prompt=negative_prompt,
+                hf_token=HF_API_TOKEN,
+            )
+            if hf_res.get("success"):
+                return {
+                    "success":    True,
+                    "image_url":  None,
+                    "image_b64":  hf_res.get("image_b64"),
+                    "image_path": hf_res.get("image_path"),
+                    "prompt":     positive_prompt,
+                    "error":      None,
+                }
+            print(f"[Generator] HF Space failed: {hf_res.get('error')}. Falling back to Pollinations.AI...")
+        except Exception as e:
+            print(f"[Generator] HF Space exception: {e}. Falling back to Pollinations.AI...")
+
     print("[Generator] Trying Pollinations.AI ...")
     result = _generate_via_pollinations(positive_prompt, negative_prompt)
     if result["success"]:
@@ -166,6 +200,8 @@ def generate_multiple_variants(
     n_variants: int = 3,
     variant_notes=None,
     variant_labels=None,
+    image_input=None,
+    style: str = "contemporary_indian",
 ) -> list:
     default_notes  = [
         "wide angle view showing full room",
@@ -182,7 +218,7 @@ def generate_multiple_variants(
         note      = notes[i]  if i < len(notes)  else ""
         label     = labels[i] if i < len(labels) else f"Variant {i + 1}"
         extra_pos = f"{positive_prompt}, {note}" if note else positive_prompt
-        result    = generate_room_image(extra_pos, negative_prompt)
+        result    = generate_room_image(extra_pos, negative_prompt, image_input=image_input, style=style)
         result["variant"]       = i + 1
         result["variant_label"] = label
         results.append(result)

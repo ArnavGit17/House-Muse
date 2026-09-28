@@ -27,6 +27,10 @@ _CSV_PATH = os.environ.get(
     "CATALOG_CSV_PATH",
     os.path.join(os.path.dirname(__file__), "..", "data", "catalog_seed.csv"),
 )
+if not os.path.exists(_CSV_PATH):
+    _backend_csv = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "data", "catalog_seed.csv")
+    if os.path.exists(_backend_csv):
+        _CSV_PATH = _backend_csv
 
 STYLE_TAG_TO_ID = {
     "Vintage Indian": "vintage_indian",
@@ -38,6 +42,15 @@ STYLE_TAG_TO_ID = {
     "Victorian": "victorian",
     "Mid-Century Modern": "mid_century_modern",
     "Cottagecore": "shabby_chic_style",
+    "vintage_indian": "vintage_indian",
+    "contemporary_indian": "contemporary_indian",
+    "coastal": "coastal",
+    "industrial": "industrial",
+    "scandinavian": "scandinavian",
+    "eclectic": "eclectic",
+    "victorian": "victorian",
+    "mid_century_modern": "mid_century_modern",
+    "shabby_chic_style": "shabby_chic_style",
 }
 
 # Maps the CSV's decor_item categories onto the 7 budget buckets

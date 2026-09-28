@@ -1,42 +1,20 @@
-# Virtual environment
-venv/
-env/
-.venv/
-
-# Python
+@"
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.egg-info/
-
-# User-uploaded room photos and training/reference images — these are large
-# binary datasets, not source code, and shouldn't live in git. Keep the CSV
-# catalog data (data/catalog_seed.csv) — it's small and it's real config.
-uploads/
-training/dataset/
-*.jpg
-*.jpeg
-*.png
-!data/*.csv
-
-# Model weights / training artifacts (large binary files — don't belong in git)
-*.pt
-*.pth
-*.safetensors
-*.onnx
-checkpoints/
-runs/
-
-# Environment variables
 .env
 .env.*
 !.env.example
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
+venv/
+.venv/
+node_modules/
+dist/
+build/
+*.sqlite3
+media/
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.bin
+house-muse/ml/models/
+"@ | Set-Content .gitignore

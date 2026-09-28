@@ -52,15 +52,15 @@ class Project(models.Model):
 # table is for. No need for anything heavier.
 
 STYLE_CHOICES = [
-    ("scandinavian", "Scandinavian"),              # was: Japandi
-    ("eclectic", "Eclectic"),                       # was: Bohemian
-    ("Contemporary Indian", "Contemporary Indian"),
-    ("Vintage Indian", "Vintage Indian"),
-    ("mid_century_modern", "Mid-Century Modern"),   # uses the engine's pre-existing "Mid-Century" DNA block (Art Deco kept separate, unused in UI)
-    ("Coastal", "Coastal"),
-    ("victorian", "Victorian"),                     # was: Dark Academia
-    ("shabby_chic_style", "Shabby Chic"),           # was: Cottagecore
-    ("Industrial", "Industrial"),
+    ("coastal", "Coastal"),
+    ("industrial", "Industrial"),
+    ("contemporary_indian", "Contemporary Indian"),
+    ("vintage_indian", "Vintage Indian"),
+    ("scandinavian", "Scandinavian"),
+    ("eclectic", "Eclectic"),
+    ("shabby_chic_style", "Shabby Chic"),
+    ("mid_century_modern", "Mid-Century Modern"),
+    ("victorian", "Victorian"),
 ]
 
 BUDGET_TIER_CHOICES = [
