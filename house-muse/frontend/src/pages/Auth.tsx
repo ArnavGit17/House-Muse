@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
-import { ArrowLeft, Eye, EyeOff, LockKeyhole } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LockKeyhole, Maximize2, Compass, Sparkles, CheckCircle2 } from "lucide-react";
 import { login, register, googleSignIn, requestPasswordReset, confirmPasswordReset, apiError } from "../lib/api";
 
 declare global {
@@ -33,33 +33,61 @@ export default function Auth() {
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response: { credential: string }) => {
-          setLoading(true); setIsError(false); setMessage("");
-          try { await googleSignIn(response.credential); navigate("/dashboard"); }
-          catch { setIsError(true); setMessage("Google sign-in didn't go through — try again."); }
-          finally { setLoading(false); }
+          setLoading(true);
+          setIsError(false);
+          setMessage("");
+          try {
+            await googleSignIn(response.credential);
+            navigate("/dashboard");
+          } catch {
+            setIsError(true);
+            setMessage("Google sign-in didn't go through — please try again.");
+          } finally {
+            setLoading(false);
+          }
         },
       });
-      window.google.accounts.id.renderButton(googleBtnRef.current, { theme: "outline", size: "large", width: 320 });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+        shape: "pill",
+      });
     };
     if (window.google) tryRender();
-    else { const id = setInterval(() => { if (window.google) { tryRender(); clearInterval(id); } }, 200); return () => clearInterval(id); }
+    else {
+      const id = setInterval(() => {
+        if (window.google) {
+          tryRender();
+          clearInterval(id);
+        }
+      }, 200);
+      return () => clearInterval(id);
+    }
   }, [mode, isReset, isConfirm, navigate]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true); setIsError(false); setMessage("");
+    setLoading(true);
+    setIsError(false);
+    setMessage("");
     try {
       if (isConfirm) {
         const data = new FormData(e.target as HTMLFormElement);
         const new_password = String(data.get("new_password") || "");
         await confirmPasswordReset(confirmParams!.uid, confirmParams!.token, new_password);
-        setMessage("Password updated. You can sign in now.");
+        setMessage("Password updated successfully. You can sign in now.");
         setTimeout(() => switchMode("login"), 1200);
       } else if (isReset) {
         await requestPasswordReset(form.email);
-        setMessage("If an account exists for that email, we'll send a reset link shortly.");
+        setMessage("If an account exists for that email, we've dispatched a reset link.");
       } else if (isRegister) {
-        await register({ username: form.username, email: form.email, password: form.password, first_name: form.first_name });
+        await register({
+          username: form.username,
+          email: form.email,
+          password: form.password,
+          first_name: form.first_name,
+        });
         navigate("/dashboard");
       } else {
         await login(form.username, form.password);
@@ -73,7 +101,249 @@ export default function Auth() {
     }
   };
 
-  const switchMode = (next: string) => { setMode(next); setMessage(""); setIsError(false); navigate(`/auth?mode=${next}`); };
+  const switchMode = (next: string) => {
+    setMode(next);
+    setMessage("");
+    setIsError(false);
+    navigate(`/auth?mode=${next}`);
+  };
 
-  return <main className="auth-page"><div className="auth-art"><div className="auth-art-copy"><span className="eyebrow">House Muse</span><h1>Make space for better ideas.</h1><p>A considered starting point for rooms that feel like yours.</p></div><img src="/manus-storage/house-muse-editorial-room_559afaf4.jpg" alt="Warm contemporary living room" /></div><section className="auth-panel"><Link href="/" className="back-link"><ArrowLeft size={15} /> House Muse</Link><div className="auth-form-wrap"><div className="auth-symbol"><LockKeyhole size={18} /></div><span className="eyebrow">{isConfirm ? "Account / New password" : isReset ? "Account / Reset" : isRegister ? "Account / Create" : "Account / Sign in"}</span><h2>{isConfirm ? "Choose a new password." : isReset ? "Find your way back in." : isRegister ? "Make an account of it." : "Good to see you again."}</h2><p>{isConfirm ? "Enter a new password for your account." : isReset ? "Enter your email and we'll send a secure reset link." : isRegister ? "Save your rooms, briefs, and directions as you go." : "Your saved rooms are ready when you are."}</p>{message && <div className={isError ? "notice notice-error" : "notice"}>{message}</div>}<form onSubmit={submit}>{isConfirm ? <label className="field-label">New password<div className="password-wrap"><input name="new_password" type={showPassword ? "text" : "password"} placeholder="At least 8 characters" minLength={8} required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label> : <>{isRegister && <label className="field-label">Name<input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} placeholder="Your name" /></label>}{!isReset && <label className="field-label">Username<input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} placeholder="Your username" required /></label>}{(isReset || isRegister) && <label className="field-label">Email<input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" required /></label>}{!isReset && <label className="field-label">Password<div className="password-wrap"><input type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="At least 8 characters" minLength={8} required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>}</>}<button className="button primary full" type="submit" disabled={loading}>{loading ? "Please wait…" : isConfirm ? "Set new password" : isReset ? "Send reset link" : isRegister ? "Create account" : "Sign in"}</button></form>{!isReset && !isConfirm && GOOGLE_CLIENT_ID && <><div className="or"><span>or</span></div><div ref={googleBtnRef} /></>}{!isRegister && !isReset && !isConfirm && <button className="quiet-link" onClick={() => switchMode("forgot")}>Forgot password?</button>}{!isConfirm && <div className="auth-switch">{isRegister ? <>Already have an account? <button onClick={() => switchMode("login")}>Sign in</button></> : <>New to House Muse? <button onClick={() => switchMode("register")}>Create an account</button></>}</div>}</div></section></main>;
+  return (
+    <main className="auth-page editorial-auth">
+      {/* Left Column: Visual Art Direction inspired by Inspo 1 & 2 */}
+      <div className="auth-art-column">
+        <div className="arch-grid-crosshair top-left" aria-hidden="true">+</div>
+        <div className="arch-grid-crosshair top-right" aria-hidden="true">+</div>
+        <div className="arch-grid-crosshair bottom-left" aria-hidden="true">+</div>
+        <div className="arch-grid-crosshair bottom-right" aria-hidden="true">+</div>
+
+        <img
+          src="/images/bedroom.jpg"
+          alt="Serene architectural bedroom sanctuary"
+          className="auth-art-bg"
+        />
+
+        <div className="auth-art-vignette" />
+
+        <div className="auth-art-header">
+          <span className="arch-badge-olive">
+            WE DESIGN THE FEELING OF YOU
+          </span>
+        </div>
+
+        <div className="auth-art-copy">
+          <span className="eyebrow section-label text-[#EFECE5]">House Muse / Atelier</span>
+          <h1 className="headline-serif text-[#FAF7F2] text-4xl lg:text-5xl leading-tight">
+            Designed Around Real Living.
+          </h1>
+          <p className="text-[#E8E2D5] text-sm leading-relaxed max-w-sm">
+            Quiet luxury, everyday. A spatial intelligence that transforms dimensions and budgets into rooms you love returning to.
+          </p>
+
+          <div className="auth-art-metrics">
+            <div>
+              <b>09</b>
+              <span>Design Languages</span>
+            </div>
+            <div className="divider-h" />
+            <div>
+              <b>100%</b>
+              <span>Proportion Accurate</span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="floating-expand-btn"
+          aria-label="Expand sanctuary view"
+          onClick={() => window.open("/images/bedroom.jpg", "_blank")}
+        >
+          <Maximize2 size={15} />
+        </button>
+      </div>
+
+      {/* Right Column: Clean Travertine Form Panel */}
+      <section className="auth-panel-column">
+        <div className="auth-panel-nav">
+          <Link href="/" className="back-link">
+            <ArrowLeft size={15} /> Return to House Muse
+          </Link>
+        </div>
+
+        <div className="auth-form-card">
+          <div className="auth-form-header">
+            <div className="auth-glyph-ring">
+              <LockKeyhole size={18} />
+            </div>
+            <span className="eyebrow section-label">
+              {isConfirm
+                ? "Coordinates / New Key"
+                : isReset
+                ? "Coordinates / Access Recovery"
+                : isRegister
+                ? "Coordinates / Welcome"
+                : "Coordinates / Return"}
+            </span>
+            <h2 className="headline-serif text-espresso text-3xl">
+              {isConfirm
+                ? "Choose a new password."
+                : isReset
+                ? "Find your way back in."
+                : isRegister
+                ? "Shape your personal sanctuary."
+                : "Good to see you again."}
+            </h2>
+            <p className="auth-desc">
+              {isConfirm
+                ? "Enter a secure key of at least 8 characters to resume your portfolio."
+                : isReset
+                ? "Enter your account email and we'll dispatch an architectural access link."
+                : isRegister
+                ? "Save your measured rooms, custom style languages, and allocated budgets."
+                : "Your measured spaces and design directions are preserved and waiting."}
+            </p>
+          </div>
+
+          {message && (
+            <div className={isError ? "notice notice-error" : "notice"}>
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={submit} className="auth-form-fields">
+            {isConfirm ? (
+              <label className="field-label">
+                <span>New Password</span>
+                <div className="password-wrap">
+                  <input
+                    name="new_password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 8 characters"
+                    minLength={8}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            ) : (
+              <>
+                {isRegister && (
+                  <label className="field-label">
+                    <span>Full Name</span>
+                    <input
+                      value={form.first_name}
+                      onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                      placeholder="e.g. Alisha Mehta"
+                    />
+                  </label>
+                )}
+
+                {!isReset && (
+                  <label className="field-label">
+                    <span>Username</span>
+                    <input
+                      value={form.username}
+                      onChange={(e) => setForm({ ...form, username: e.target.value })}
+                      placeholder="e.g. alisha_studio"
+                      required
+                    />
+                  </label>
+                )}
+
+                {(isReset || isRegister) && (
+                  <label className="field-label">
+                    <span>Email Address</span>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </label>
+                )}
+
+                {!isReset && (
+                  <label className="field-label">
+                    <span>Password</span>
+                    <div className="password-wrap">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        placeholder="At least 8 characters"
+                        minLength={8}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label="Toggle password visibility"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </label>
+                )}
+              </>
+            )}
+
+            <button className="button primary full-width" type="submit" disabled={loading}>
+              {loading
+                ? "Connecting to Atelier…"
+                : isConfirm
+                ? "Set New Password"
+                : isReset
+                ? "Send Reset Link"
+                : isRegister
+                ? "Create Spatial Account"
+                : "Sign In"}
+            </button>
+          </form>
+
+          {!isReset && !isConfirm && GOOGLE_CLIENT_ID && (
+            <>
+              <div className="or-divider">
+                <span>or continue with Google</span>
+              </div>
+              <div ref={googleBtnRef} className="google-btn-wrapper" />
+            </>
+          )}
+
+          {!isRegister && !isReset && !isConfirm && (
+            <button className="quiet-link" onClick={() => switchMode("forgot")}>
+              Forgot your key?
+            </button>
+          )}
+
+          {!isConfirm && (
+            <div className="auth-toggle-footer">
+              {isRegister ? (
+                <span>
+                  Already hold a House Muse archive?{" "}
+                  <button type="button" onClick={() => switchMode("login")}>
+                    Sign in
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  New to House Muse?{" "}
+                  <button type="button" onClick={() => switchMode("register")}>
+                    Create an account
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
+  );
 }

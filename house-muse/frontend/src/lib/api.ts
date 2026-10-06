@@ -20,5 +20,11 @@ export const confirmPasswordReset = async (uid: string, token: string, new_passw
 export const getProjects = async () => (await api.get<Project[]>("/studio/projects/")).data;
 export const analyse = async (payload: { room_type: RoomType; length: number; width: number; height: number; styles: StyleId[]; budget: number; scope: Scope; num_rooms?: number; harmony?: string; save?: boolean; image?: File }) => { const body = new FormData(); body.append("room_type", payload.room_type); body.append("length", String(payload.length)); body.append("width", String(payload.width)); body.append("height", String(payload.height)); payload.styles.forEach(style => body.append("styles", style)); body.append("budget", String(payload.budget)); body.append("scope", payload.scope); body.append("num_rooms", String(payload.num_rooms || 1)); body.append("harmony", payload.harmony || "analogous"); body.append("save", String(payload.save ?? true)); if (payload.image) body.append("image", payload.image); return (await api.post("/studio/analyse/", body)).data; };
 export const generateImage = async (payload: Record<string, unknown>) => (await api.post("/studio/generate-image/", payload)).data;
+export type RefineHistoryItem = { id: number; instruction: string; resulting_image: string; created_at: string };
+
+export type RefineResponse = { success: boolean; image_url: string; image_b64?: string; resulting_image: string; instruction: string; history: RefineHistoryItem[]; project_id: number };
+export const refineImage = async (payload: { project_id: number; instruction: string }): Promise<RefineResponse> => (await api.post<RefineResponse>("/studio/refine-image/", payload)).data;
+
 
 export function apiError(error: unknown) { const response = (error as { response?: { data?: Record<string, string[]> } })?.response?.data; if (!response) return "We could not reach the House Muse service. Check VITE_API_BASE and your backend CORS settings."; const first = Object.entries(response)[0]; return first ? `${first[0]}: ${Array.isArray(first[1]) ? first[1][0] : first[1]}` : "The request could not be completed."; }
+

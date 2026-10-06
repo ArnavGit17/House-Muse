@@ -60,41 +60,50 @@ STYLE_TO_ADAPTER: Dict[str, str] = {
 
 DEFAULT_STYLE_PROMPTS: Dict[str, str] = {
     "coastal": (
-        "coastal beach house interior design, sun-washed white walls, natural rattan furniture, "
+        "coastal beach house interior design, completely refurnished with new coastal furniture, new seating, "
+        "new lighting fixtures, sun-washed white walls, natural rattan chairs and sofa, "
         "sea blue and sandy beige accents, light linen curtains, breezy airy natural lighting, "
         "high end architectural digest photograph"
     ),
     "contemporary_indian": (
-        "contemporary Indian interior design, warm brass and copper accents, terracotta and warm ochre tones, "
+        "contemporary Indian interior design, completely refurnished with new contemporary Indian furniture, "
+        "new designer seating, modern brass lighting fixtures, warm brass and copper accents, terracotta and warm ochre tones, "
         "modern Indian craftsmanship, handcrafted wood finishes, clean geometric lines, soft warm ambient lighting"
     ),
     "eclectic": (
-        "eclectic layered interior design, curated art wall, mix of vintage and contemporary furniture, "
+        "eclectic layered interior design, completely refurnished with new eclectic statement furniture, "
+        "curated art wall, new seating, statement lighting fixtures, mix of vintage and contemporary furniture, "
         "rich textures, patterned accent rugs, bold cohesive color harmony, interior magazine photography"
     ),
     "industrial": (
-        "industrial loft interior design, exposed brick accent wall, black steel and iron metalwork, "
-        "polished concrete floor, reclaimed wood dining table, Edison bulb pendant lights, architectural photography"
+        "industrial loft interior design, completely refurnished with new industrial furniture, new leather seating, "
+        "exposed brick accent wall, black steel and iron metalwork, polished concrete floor, "
+        "new reclaimed wood dining table, Edison bulb pendant lights, architectural photography"
     ),
     "mid_century": (
-        "mid century modern interior design, iconic walnut credenza, tapered wooden legs, mustard yellow and burnt orange accents, "
-        "clean retro lines, large windows, warm diffused daylight"
+        "mid century modern interior design, completely refurnished with new mid-century modern furniture, "
+        "new retro seating, iconic walnut credenza, tapered wooden legs, new lighting fixtures, "
+        "mustard yellow and burnt orange accents, clean retro lines, large windows, warm diffused daylight"
     ),
     "scandavian": (
-        "scandinavian interior design, light blonde oak furniture, soft neutral tones, minimal wabi-sabi elegance, "
+        "scandinavian interior design, completely refurnished with new scandinavian furniture, new minimalist seating, "
+        "light blonde oak furniture, new modern lighting fixtures, soft neutral tones, minimal wabi-sabi elegance, "
         "cozy wool textiles, bright white walls, soft daylight, clutter free serene room"
     ),
     "shabby_chic_style": (
-        "shabby chic interior design, distressed painted vintage furniture, soft pastel florals, antique lace, "
+        "shabby chic interior design, completely refurnished with new shabby chic furniture, new vintage slipcovered seating, "
+        "distressed painted vintage wood furniture, new chandeliers and lighting fixtures, soft pastel florals, antique lace, "
         "cozy romantic decor, soft warm lighting, charming lived-in French country aesthetic"
     ),
     "victorian": (
-        "victorian interior design, ornate crown moldings, dark mahogany woodwork, tufted jewel tone velvet seating, "
-        "crystal chandelier, rich dramatic heritage atmosphere, professional interior photography"
+        "victorian interior design, completely refurnished with new victorian furniture, tufted jewel tone velvet seating, "
+        "ornate crown moldings, dark mahogany woodwork, crystal chandelier and wall sconces, "
+        "rich dramatic heritage atmosphere, professional interior photography"
     ),
     "vintage_indian": (
-        "vintage Indian haveli interior, intricate carved jaali woodwork, antique brass artifacts, rich indigo and terracotta hues, "
-        "ornate teak furniture, traditional block-printed fabrics, heritage palace warmth"
+        "vintage Indian haveli interior, completely refurnished with new vintage Indian furniture, new carved seating, "
+        "intricate carved jaali woodwork, antique brass artifacts, new heritage brass lantern lighting fixtures, "
+        "rich indigo and terracotta hues, ornate teak furniture, traditional block-printed fabrics, heritage palace warmth"
     ),
 }
 
@@ -245,7 +254,7 @@ class RoomRedesignEngine:
         style: str,
         prompt: Optional[str] = None,
         negative_prompt: Optional[str] = None,
-        controlnet_scale: float = 0.70,
+        controlnet_scale: float = 0.45,
         lora_scale: float = 0.80,
         num_inference_steps: int = 30,
         guidance_scale: float = 7.5,
@@ -294,7 +303,7 @@ class RoomRedesignEngine:
         else:
             final_prompt = DEFAULT_STYLE_PROMPTS.get(
                 adapter_key or normalized_style,
-                f"high-end interior design photograph of a {normalized_style} redesigned room, elegant, photorealistic, 8k"
+                f"high-end interior design photograph of a {normalized_style} redesigned room, completely refurnished with new {normalized_style} furniture, new seating, new lighting fixtures, elegant, photorealistic, 8k"
             )
 
         final_negative = negative_prompt or DEFAULT_NEGATIVE_PROMPT

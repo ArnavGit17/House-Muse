@@ -72,6 +72,72 @@ SIZE_MAP = {
     "large":  "spacious and grand room, generous proportions",
 }
 
+# ── Room-type furniture requirements ──────────────────────────────────────────
+ROOM_FURNITURE_REQUIREMENTS = {
+    "living_room": "a sofa or couch as the central seating piece, a coffee table, accent chairs",
+    "bedroom":     "a bed with headboard, nightstands, a dresser",
+    "kitchen":     "cabinetry, countertop, bar stools if space allows",
+    "dining_room": "a dining table with chairs",
+    "bathroom":    "vanity, mirror, fixtures",
+    "study_room":  "a desk, chair, bookshelf",
+}
+
+
+def get_room_furniture_requirements(room_type: str) -> str:
+    """Return required furniture clause for room_type, normalizing common aliases."""
+    if not room_type:
+        return ""
+    key = room_type.lower().strip().replace(" ", "_").replace("-", "_")
+    alias_map = {
+        "living": "living_room",
+        "bed": "bedroom",
+        "bath": "bathroom",
+        "dining": "dining_room",
+        "study": "study_room",
+        "office": "study_room",
+        "home_office": "study_room",
+    }
+    key = alias_map.get(key, key)
+    return ROOM_FURNITURE_REQUIREMENTS.get(key, "")
+
+
+def inject_room_furniture_into_prompt(prompt: str, room_type: str = "living_room") -> str:
+    """
+    Inject matching room furniture requirement into prompt right after the refurnishing line,
+    ensuring room_type directly drives priority furniture in generated images.
+    """
+    req = get_room_furniture_requirements(room_type)
+    if not req or req in prompt:
+        return prompt
+
+    # Locate common refurnishing line endings
+    patterns = [
+        "new lighting fixtures,",
+        "new lighting fixtures",
+        "new seating,",
+        "new seating",
+        "new retro seating,",
+        "new retro seating",
+        "new designer seating,",
+        "new designer seating",
+        "new leather seating,",
+        "new leather seating",
+        "completely refurnished with new furniture,",
+        "completely refurnished with",
+    ]
+    for pat in patterns:
+        if pat in prompt:
+            idx = prompt.find(pat) + len(pat)
+            prefix = prompt[:idx].rstrip()
+            suffix = prompt[idx:].lstrip()
+            # If prefix didn't end with a comma, add one
+            sep = "" if prefix.endswith(",") else ","
+            return f"{prefix}{sep} {req}, {suffix}".strip()
+
+    # Fallback if no specific refurnishing line pattern is found
+    return f"{prompt}, {req}"
+
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  STEP 1 — BLIP ENCODER-DECODER: Image → Caption
@@ -164,13 +230,14 @@ def generate_caption(image_bytes: bytes, max_retries: int = 3) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def build_prompt_from_caption(
-    caption:         str,
-    styles:          list[str],
-    wall_color_name: str,
+    caption:           str,
+    styles:            list[str],
+    wall_color_name:   str,
     accent_color_name: str,
-    size_category:   str,
-    lighting:        str,
-    dominant_colors: list[dict] = None,
+    size_category:     str,
+    lighting:          str,
+    dominant_colors:   list[dict] = None,
+    room_type:         str = "living_room",
 ) -> tuple[str, str]:
     """
     Combine BLIP caption with style/palette info to build a rich
@@ -184,6 +251,7 @@ def build_prompt_from_caption(
         size_category     : small | medium | large
         lighting          : bright | dim
         dominant_colors   : list from K-Means extraction
+        room_type         : room category (e.g. living_room, bedroom)
 
     Returns:
         (positive_prompt, negative_prompt)
@@ -203,10 +271,16 @@ def build_prompt_from_caption(
         dom = _hex_to_rough_name(dominant_colors[0]["hex"])
         colour_note += f", dominant {dom} colour palette"
 
+    # Room-type core furniture requirement
+    req_furniture = get_room_furniture_requirements(room_type)
+    furniture_clause = f"{req_furniture}, " if req_furniture else ""
+
     # The caption is the ANCHOR — it grounds the prompt in the real room
     positive = (
         f"ultra realistic interior design photograph, "
         f"{caption}, "                             # ← BLIP caption = encoder output
+        f"completely refurnished with new {style_text} furniture, new seating, new lighting fixtures, "
+        f"{furniture_clause}"
         f"redesigned as {style_text}, "
         f"{colour_note}, "
         f"{size_desc}, {light_desc}, "
@@ -284,9 +358,15 @@ def build_prompt_fallback(
         if obj_names:
             obj_note = f"featuring {', '.join(obj_names)}, "
 
+    # Room-type core furniture requirement
+    req_furniture = get_room_furniture_requirements(room_type)
+    furniture_clause = f"{req_furniture}, " if req_furniture else ""
+
     positive = (
         f"ultra realistic interior design photograph, {room_desc}, "
         f"{obj_note}"
+        f"completely refurnished with new {style_text} furniture, new seating, new lighting fixtures, "
+        f"{furniture_clause}"
         f"designed in {style_text}, "
         f"{colour_note}, "
         f"{size_desc}, {light_desc}, "
@@ -345,7 +425,8 @@ def get_generation_prompt(
             method  = "blip"
             pos, neg = build_prompt_from_caption(
                 caption, styles, wall_name, accent_name,
-                size_category, lighting, dominant_colors
+                size_category, lighting, dominant_colors,
+                room_type=room_type,
             )
             return {
                 "positive_prompt": pos,

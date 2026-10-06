@@ -136,12 +136,19 @@ def generate_room_image(
     negative_prompt: str = "",
     image_input=None,
     style: str = "contemporary_indian",
+    room_type: str = "living_room",
 ) -> dict:
     """
     1. Try Hugging Face Space (SDXL + ControlNet + LoRA) if image_input and HF_SPACE_ID are available
     2. Try Pollinations.AI first  — free, no key, good quality
     3. Fall back to Stability AI  — free 25 credits/month, needs STABILITY_API_KEY
     """
+    try:
+        from modules.caption_engine import inject_room_furniture_into_prompt
+        positive_prompt = inject_room_furniture_into_prompt(positive_prompt, room_type)
+    except Exception:
+        pass
+
     if image_input and HF_SPACE_ID:
         try:
             from modules.hf_space_client import call_hf_space_redesign
@@ -202,6 +209,7 @@ def generate_multiple_variants(
     variant_labels=None,
     image_input=None,
     style: str = "contemporary_indian",
+    room_type: str = "living_room",
 ) -> list:
     default_notes  = [
         "wide angle view showing full room",
@@ -218,10 +226,238 @@ def generate_multiple_variants(
         note      = notes[i]  if i < len(notes)  else ""
         label     = labels[i] if i < len(labels) else f"Variant {i + 1}"
         extra_pos = f"{positive_prompt}, {note}" if note else positive_prompt
-        result    = generate_room_image(extra_pos, negative_prompt, image_input=image_input, style=style)
+        result    = generate_room_image(extra_pos, negative_prompt, image_input=image_input, style=style, room_type=room_type)
         result["variant"]       = i + 1
         result["variant_label"] = label
         results.append(result)
-        if i < n_variants - 1:
-            time.sleep(3)
     return results
+
+
+# ── Refinement & Base Style Prompts ───────────────────────────────────────────
+DEFAULT_STYLE_PROMPTS = {
+    "coastal": (
+        "coastal beach house interior design, completely refurnished with new coastal furniture, new seating, "
+        "new lighting fixtures, sun-washed white walls, natural rattan chairs and sofa, "
+        "sea blue and sandy beige accents, light linen curtains, breezy airy natural lighting, "
+        "high end architectural digest photograph"
+    ),
+    "contemporary_indian": (
+        "contemporary Indian interior design, completely refurnished with new contemporary Indian furniture, "
+        "new designer seating, modern brass lighting fixtures, warm brass and copper accents, terracotta and warm ochre tones, "
+        "modern Indian craftsmanship, handcrafted wood finishes, clean geometric lines, soft warm ambient lighting, "
+        "high end architectural digest photograph"
+    ),
+    "eclectic": (
+        "eclectic layered interior design, completely refurnished with new eclectic statement furniture, "
+        "curated art wall, new seating, statement lighting fixtures, mix of vintage and contemporary furniture, "
+        "rich textures, patterned accent rugs, bold cohesive color harmony, interior magazine photography"
+    ),
+    "industrial": (
+        "industrial loft interior design, completely refurnished with new industrial furniture, new leather seating, "
+        "exposed brick accent wall, black steel and iron metalwork, polished concrete floor, "
+        "new reclaimed wood dining table, Edison bulb pendant lights, architectural photography"
+    ),
+    "mid_century": (
+        "mid century modern interior design, completely refurnished with new mid-century modern furniture, "
+        "new retro seating, iconic walnut credenza, tapered wooden legs, new lighting fixtures, "
+        "mustard yellow and burnt orange accents, clean retro lines, large windows, warm diffused daylight"
+    ),
+    "scandavian": (
+        "scandinavian interior design, completely refurnished with new scandinavian furniture, new minimalist seating, "
+        "light blonde oak furniture, new modern lighting fixtures, soft neutral tones, minimal wabi-sabi elegance, "
+        "cozy wool textiles, bright white walls, soft daylight, clutter free serene room"
+    ),
+    "shabby_chic_style": (
+        "shabby chic interior design, completely refurnished with new shabby chic furniture, new vintage slipcovered seating, "
+        "distressed painted vintage wood furniture, new chandeliers and lighting fixtures, soft pastel florals, antique lace, "
+        "cozy romantic decor, soft warm lighting, charming lived-in French country aesthetic"
+    ),
+    "victorian": (
+        "victorian interior design, completely refurnished with new victorian furniture, tufted jewel tone velvet seating, "
+        "ornate crown moldings, dark mahogany woodwork, crystal chandelier and wall sconces, "
+        "rich dramatic heritage atmosphere, professional interior photography"
+    ),
+    "vintage_indian": (
+        "vintage Indian haveli interior, completely refurnished with new vintage Indian furniture, new carved seating, "
+        "intricate carved jaali woodwork, antique brass artifacts, new heritage brass lantern lighting fixtures, "
+        "rich indigo and terracotta hues, ornate teak furniture, traditional block-printed fabrics, heritage palace warmth"
+    ),
+}
+
+_STYLE_MAP = {
+    "scandinavian": "scandavian",
+    "scandavian": "scandavian",
+    "mid_century_modern": "mid_century",
+    "mid-century-modern": "mid_century",
+    "mid_century": "mid_century",
+    "mid-century": "mid_century",
+    "shabby_chic": "shabby_chic_style",
+    "shabby-chic": "shabby_chic_style",
+    "shabby_chic_style": "shabby_chic_style",
+    "contemporary_indian": "contemporary_indian",
+    "contemporary-indian": "contemporary_indian",
+    "vintage_indian": "vintage_indian",
+    "vintage-indian": "vintage_indian",
+}
+
+
+def get_base_style_prompt(style: str = "contemporary_indian", room_type: str = "living_room") -> str:
+    """Returns the canonical base style prompt with furniture injection for room_type."""
+    norm_style = style.lower().strip().replace(" ", "_") if style else "contemporary_indian"
+    resolved_key = _STYLE_MAP.get(norm_style, norm_style)
+    base_prompt = DEFAULT_STYLE_PROMPTS.get(
+        resolved_key,
+        f"high-end interior design photograph of a {norm_style} room, elegant, photorealistic, 8k"
+    )
+    try:
+        from modules.caption_engine import inject_room_furniture_into_prompt
+        base_prompt = inject_room_furniture_into_prompt(base_prompt, room_type)
+    except Exception:
+        pass
+    return base_prompt
+
+
+def _generate_img2img_via_stability(
+    init_image,
+    positive_prompt: str,
+    negative_prompt: str = "",
+    image_strength: float = 0.35,
+) -> dict:
+    if not STABILITY_API_KEY:
+        return {"success": False, "image_url": None, "image_b64": None, "error": "No STABILITY_API_KEY set"}
+
+    img_bytes = None
+    if isinstance(init_image, bytes):
+        img_bytes = init_image
+    elif isinstance(init_image, str):
+        if os.path.exists(init_image):
+            with open(init_image, "rb") as f:
+                img_bytes = f.read()
+        else:
+            try:
+                b64_str = init_image.split(",", 1)[1] if "," in init_image else init_image
+                img_bytes = base64.b64decode(b64_str)
+            except Exception:
+                pass
+    elif hasattr(init_image, "read"):
+        if hasattr(init_image, "seek"):
+            init_image.seek(0)
+        img_bytes = init_image.read()
+
+    if not img_bytes:
+        return {"success": False, "image_url": None, "image_b64": None, "error": "Could not read init_image bytes"}
+
+    headers = {
+        "Authorization": f"Bearer {STABILITY_API_KEY}",
+        "Accept": "application/json",
+    }
+    data = {
+        "init_image_mode": "IMAGE_STRENGTH",
+        "image_strength": float(image_strength),
+        "text_prompts[0][text]": positive_prompt,
+        "text_prompts[0][weight]": 1.0,
+        "cfg_scale": 7.5,
+        "samples": 1,
+        "steps": 30,
+    }
+    if negative_prompt:
+        data["text_prompts[1][text]"] = negative_prompt
+        data["text_prompts[1][weight]"] = -1.0
+
+    files = {"init_image": ("init.jpg", img_bytes, "image/jpeg")}
+
+    try:
+        resp = requests.post(
+            "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/image-to-image",
+            headers=headers,
+            data=data,
+            files=files,
+            timeout=60,
+        )
+        if resp.status_code == 200:
+            artifacts = resp.json().get("artifacts", [])
+            if artifacts:
+                return {"success": True, "image_url": None, "image_b64": artifacts[0]["base64"], "error": None}
+            return {"success": False, "image_url": None, "image_b64": None, "error": "Stability AI returned no artifacts"}
+        else:
+            return {"success": False, "image_url": None, "image_b64": None, "error": f"Stability AI error {resp.status_code}: {resp.text[:200]}"}
+    except Exception as e:
+        return {"success": False, "image_url": None, "image_b64": None, "error": str(e)}
+
+
+def refine_room_image(
+    positive_prompt: str,
+    negative_prompt: str = "",
+    init_image=None,
+    original_image=None,
+    instruction: str = "",
+    style: str = "contemporary_indian",
+    strength: float = 0.35,
+    room_type: str = "living_room",
+) -> dict:
+    """
+    Refines a previous generated room image:
+    1. Tries Hugging Face Space img2img with strength ~0.3-0.4 (preserves room structure and previous style).
+    2. Falls back to Stability AI img2img if STABILITY_API_KEY is available.
+    3. Falls back to Pollinations.AI with the refined instruction prompt.
+    """
+    if init_image and HF_SPACE_ID:
+        try:
+            from modules.hf_space_client import call_hf_space_refine
+            print(f"[Generator] Calling HF Space '{HF_SPACE_ID}' for refinement (strength={strength})...")
+            hf_res = call_hf_space_refine(
+                space_id=HF_SPACE_ID,
+                image_input=init_image,
+                style=style,
+                instruction=instruction,
+                original_image_input=original_image,
+                prompt=positive_prompt,
+                negative_prompt=negative_prompt,
+                strength=strength,
+                controlnet_scale=0.45,
+                lora_scale=0.80,
+                hf_token=HF_API_TOKEN,
+            )
+            if hf_res.get("success"):
+                return {
+                    "success": True,
+                    "image_url": None,
+                    "image_b64": hf_res.get("image_b64"),
+                    "image_path": hf_res.get("image_path"),
+                    "prompt": positive_prompt,
+                    "instruction": instruction,
+                    "error": None,
+                }
+            print(f"[Generator] HF Space refine failed: {hf_res.get('error')}. Trying fallbacks...")
+        except Exception as e:
+            print(f"[Generator] HF Space refine exception: {e}. Trying fallbacks...")
+
+    if STABILITY_API_KEY and init_image:
+        print("[Generator] Trying Stability AI img2img fallback...")
+        res = _generate_img2img_via_stability(
+            init_image=init_image,
+            positive_prompt=positive_prompt,
+            negative_prompt=negative_prompt,
+            image_strength=strength,
+        )
+        if res.get("success"):
+            res["prompt"] = positive_prompt
+            res["instruction"] = instruction
+            return res
+        print(f"[Generator] Stability AI img2img failed: {res.get('error')}")
+
+    print("[Generator] Trying Pollinations.AI for refinement...")
+    result = _generate_via_pollinations(positive_prompt, negative_prompt)
+    if result.get("success"):
+        result["prompt"] = positive_prompt
+        result["instruction"] = instruction
+        return result
+
+    return {
+        "success": False,
+        "image_url": None,
+        "image_b64": None,
+        "prompt": positive_prompt,
+        "instruction": instruction,
+        "error": "All refinement generators (HF Space, Stability AI, Pollinations) failed.",
+    }

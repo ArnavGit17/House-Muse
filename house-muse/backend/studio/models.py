@@ -124,3 +124,31 @@ class DecorItem(models.Model):
 
     def __str__(self):
         return f"{self.name} — ₹{self.price:.0f}"
+
+
+class ProjectRefinement(models.Model):
+    """
+    One refinement step applied to a Project's generated design.
+    Stores the user instruction and resulting image, forming
+    an ordered history where each edit builds on the previous one.
+    """
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="refinements")
+    instruction = models.TextField()
+    resulting_image = models.ImageField(upload_to="projects/refinements/", blank=True, null=True)
+    resulting_image_url = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Refinement {self.id} for Project {self.project_id}: {self.instruction[:30]}"
+
+    def get_resulting_image(self, request=None):
+        if self.resulting_image:
+            if request:
+                return request.build_absolute_uri(self.resulting_image.url)
+            return self.resulting_image.url
+        return self.resulting_image_url or ""
+

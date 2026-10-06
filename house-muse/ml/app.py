@@ -14,7 +14,12 @@ from modules.image_processor        import process_image
 from modules.color_palette          import generate_palette
 from modules.space_analyzer         import analyse_space
 from modules.recommendation_engine  import recommend, recommendation_to_dict, get_style_palette
-from modules.image_generator        import generate_room_image, generate_multiple_variants
+from modules.image_generator        import (
+    generate_room_image,
+    generate_multiple_variants,
+    refine_room_image,
+    get_base_style_prompt,
+)
 from modules.caption_engine         import get_generation_prompt
 import numpy as np
 
@@ -286,7 +291,7 @@ def generate_image():
         # ── Step 3: Pollinations.AI (Stability AI fallback) ─────────────────
         chosen_style = styles[0] if styles else "contemporary_indian"
         if n_variants == 1:
-            result   = generate_room_image(positive, negative, image_input=image_bytes, style=chosen_style)
+            result   = generate_room_image(positive, negative, image_input=image_bytes, style=chosen_style, room_type=room_type)
             variants = [{
                 **result,
                 "variant":       1,
@@ -304,7 +309,7 @@ def generate_image():
             variants = []
             for i in range(min(n_variants, 3)):
                 extra_pos = f"{positive}, {notes[i]}"
-                r = generate_room_image(extra_pos, negative, image_input=image_bytes, style=chosen_style)
+                r = generate_room_image(extra_pos, negative, image_input=image_bytes, style=chosen_style, room_type=room_type)
                 variants.append({
                     **r,
                     "variant":       i + 1,
@@ -337,6 +342,113 @@ def generate_image():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e), "variants": []}), 500
+
+
+@app.route("/api/refine-image", methods=["POST"])
+def refine_image():
+    """
+    Refinement pipeline:
+      1. Receives previous generated image as img2img init image
+      2. Optionally receives original room photo to lock depth/geometry
+      3. Builds prompt from canonical base style prompt + appended instruction
+      4. Invokes HF Space refine (or Stability AI img2img / Pollinations fallback) with strength ~0.3-0.4
+      5. Returns refined image data and prompt details
+    """
+    try:
+        is_json = request.content_type and "application/json" in request.content_type
+
+        if is_json:
+            data                 = request.get_json(force=True)
+            image_input          = data.get("image") or data.get("init_image")
+            original_image_input = data.get("original_image")
+            instruction          = data.get("instruction", "").strip()
+            room_type            = data.get("room_type", "living_room")
+            styles               = data.get("styles") or [data.get("style", "contemporary_indian")]
+            strength             = float(data.get("strength", 0.35))
+            custom_prompt        = data.get("prompt", "").strip()
+        else:
+            image_file           = request.files.get("image") or request.files.get("init_image")
+            image_input          = image_file.read() if image_file else request.form.get("image")
+            orig_file            = request.files.get("original_image")
+            original_image_input = orig_file.read() if orig_file else request.form.get("original_image")
+            instruction          = request.form.get("instruction", "").strip()
+            room_type            = request.form.get("room_type", "living_room")
+            styles_raw           = request.form.get("styles") or request.form.get("style", '["contemporary_indian"]')
+            if isinstance(styles_raw, str):
+                try:
+                    styles       = json.loads(styles_raw)
+                except Exception:
+                    styles       = [styles_raw]
+            else:
+                styles           = styles_raw or ["contemporary_indian"]
+            if not isinstance(styles, list):
+                styles           = [styles]
+            strength             = float(request.form.get("strength", 0.35))
+            custom_prompt        = request.form.get("prompt", "").strip()
+
+        if not image_input:
+            return jsonify({"success": False, "error": "No init image provided for refinement"}), 400
+
+        if not instruction:
+            return jsonify({"success": False, "error": "No instruction provided for refinement"}), 400
+
+        chosen_style = styles[0] if styles else "contemporary_indian"
+
+        # Build prompt: base style prompt + instruction appended
+        if custom_prompt:
+            base_prompt = custom_prompt
+        else:
+            base_prompt = get_base_style_prompt(style=chosen_style, room_type=room_type)
+
+        if instruction.lower() not in base_prompt.lower():
+            full_prompt = f"{base_prompt}, {instruction}"
+        else:
+            full_prompt = base_prompt
+
+        print(f"[Refine] Style: {chosen_style}, Strength: {strength}")
+        print(f"[Refine] Instruction: {instruction}")
+        print(f"[Refine] Prompt: {full_prompt}")
+
+        result = refine_room_image(
+            positive_prompt=full_prompt,
+            negative_prompt="",
+            init_image=image_input,
+            original_image=original_image_input,
+            instruction=instruction,
+            style=chosen_style,
+            strength=strength,
+            room_type=room_type,
+        )
+
+        success = result.get("success", False)
+        img_url = result.get("image_url")
+        img_b64 = result.get("image_b64")
+
+        return jsonify({
+            "success": success,
+            "instruction": instruction,
+            "image_url": img_url,
+            "image_b64": img_b64,
+            "prompt": result.get("prompt", full_prompt),
+            "error": result.get("error"),
+            "variants": [
+                {
+                    "variant": 1,
+                    "variant_label": "Refined View",
+                    "image_url": img_url,
+                    "image_b64": img_b64,
+                    "prompt": result.get("prompt", full_prompt),
+                    "instruction": instruction,
+                    "success": success,
+                    "error": result.get("error"),
+                }
+            ],
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e), "variants": []}), 500
+
 
 
 # ── Default colours when no image uploaded ─────────────────────────────────

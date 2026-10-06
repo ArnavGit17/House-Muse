@@ -1,10 +1,52 @@
 import { useMemo, useRef, useState } from "react";
-import { analyse, generateImage, apiError } from "../lib/api";
+import { analyse, generateImage, refineImage, apiError, type RefineHistoryItem } from "../lib/api";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, Check, ImagePlus, Ruler, Sparkles, ChevronDown, ChevronUp, Armchair, Lamp, Frame, Palette, Layers, X, ArrowLeftRight } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ImagePlus,
+  Ruler,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Armchair,
+  Lamp,
+  Frame,
+  Palette,
+  Layers,
+  X,
+  ArrowLeftRight,
+  Maximize2,
+  Compass,
+  RotateCcw,
+  CheckCircle2,
+  Send,
+  Loader2,
+  MessageSquare,
+} from "lucide-react";
 
-const styles = [["vintage_indian", "Vintage Indian", "Craft, patina, story"], ["contemporary_indian", "Contemporary Indian", "Clean lines, rooted materials"], ["coastal", "Coastal", "Airy, soft, sun-washed"], ["industrial", "Industrial", "Raw, graphic, structural"], ["scandinavian", "Scandinavian", "Light, calm, considered"], ["eclectic", "Eclectic", "Collected, expressive, layered"], ["shabby_chic_style", "Shabby Chic", "Romantic, lived-in, delicate"], ["mid_century_modern", "Mid-century Modern", "Iconic, warm, balanced"], ["victorian", "Victorian", "Ornate, dramatic, timeless"]];
-const roomTypes = [["living_room", "Living room"], ["bedroom", "Bedroom"], ["kitchen", "Kitchen"], ["dining_room", "Dining room"], ["bathroom", "Bathroom"], ["study_room", "Study room"]];
+
+const styles = [
+  ["vintage_indian", "Vintage Indian", "Craft, patina, rich history & brass accents"],
+  ["contemporary_indian", "Contemporary Indian", "Clean lines, rooted woods & natural stone"],
+  ["coastal", "Coastal", "Airy, soft, sun-washed linens & bleached timber"],
+  ["industrial", "Industrial", "Raw, graphic, structural steel & masonry"],
+  ["scandinavian", "Scandinavian Japandi", "Light, calm, warm minimalism & organic form"],
+  ["eclectic", "Eclectic Bohemian", "Collected, expressive, textured & storied"],
+  ["shabby_chic_style", "Shabby Chic", "Romantic, lived-in, soft floral & distressed finish"],
+  ["mid_century_modern", "Mid-Century Modern", "Iconic silhouettes, walnut & balanced geometry"],
+  ["victorian", "Victorian", "Ornate moldings, velvet depth & dramatic poise"],
+];
+
+const roomTypes = [
+  ["living_room", "Living Room"],
+  ["bedroom", "Master Bedroom"],
+  ["kitchen", "Culinary Kitchen"],
+  ["dining_room", "Dining Room"],
+  ["bathroom", "Bath & Spa"],
+  ["study_room", "Library & Study"],
+];
 
 const STYLE_CATALOG_INFO: Record<string, { prefix: string; suffix: string; wallpaperName: string }> = {
   scandinavian: { prefix: "Minimalist", suffix: "Japandi", wallpaperName: "Japandi Damask Wallpaper" },
@@ -19,21 +61,21 @@ const STYLE_CATALOG_INFO: Record<string, { prefix: string; suffix: string; wallp
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  furniture: "#c0603a",
-  wallpaper: "#d49b42",
-  curtains: "#76876a",
-  rugs: "#bca37f",
-  lamps: "#e07a5f",
-  wall_art: "#5b6c7a",
-  accent: "#9c6d59",
+  furniture: "#C0603A",
+  wallpaper: "#D49B42",
+  curtains: "#76876A",
+  rugs: "#BCA37F",
+  lamps: "#8A9A5B",
+  wall_art: "#5B6C7A",
+  accent: "#9C6D59",
 };
 
 const ROOM_MARKERS = [
-  { id: 1, top: "25%", left: "48%", category: "wall_art", itemIndex: 0, label: "Wall Art", alignRight: false },
+  { id: 1, top: "26%", left: "48%", category: "wall_art", itemIndex: 0, label: "Wall Art", alignRight: false },
   { id: 2, top: "38%", left: "80%", category: "lamps", itemIndex: 0, label: "Lighting", alignRight: true },
-  { id: 3, top: "60%", left: "28%", category: "furniture", itemIndex: 0, label: "Seating", alignRight: false },
-  { id: 4, top: "68%", left: "60%", category: "furniture", itemIndex: 1, label: "Table", alignRight: false },
-  { id: 5, top: "82%", left: "44%", category: "rugs", itemIndex: 0, label: "Rug", alignRight: false },
+  { id: 3, top: "62%", left: "28%", category: "furniture", itemIndex: 0, label: "Seating", alignRight: false },
+  { id: 4, top: "70%", left: "62%", category: "furniture", itemIndex: 1, label: "Table", alignRight: false },
+  { id: 5, top: "84%", left: "46%", category: "rugs", itemIndex: 0, label: "Rug", alignRight: false },
 ];
 
 function ItemThumbnailIcon({ category }: { category: string }) {
@@ -80,21 +122,24 @@ function getCategoryCatalogItems(
   if (key === "wallpaper") {
     const recoWallpapers = resultData?.recommendations?.wallpapers;
     if (Array.isArray(recoWallpapers) && recoWallpapers.length > 0) {
-      return [{
-        name: recoWallpapers[0].name || "Feature Wallpaper",
-        price: amount,
-        thumbnail: recoWallpapers[0].image_url || "",
-        category: "wallpaper",
-      }];
+      return [
+        {
+          name: recoWallpapers[0].name || "Feature Wallpaper",
+          price: amount,
+          thumbnail: recoWallpapers[0].image_url || "",
+          category: "wallpaper",
+        },
+      ];
     }
   } else {
     const recoDecor = resultData?.recommendations?.decor_items;
     if (Array.isArray(recoDecor) && recoDecor.length > 0) {
-      const matched = recoDecor.filter((d: any) =>
-        d.category === key ||
-        (key === "curtains" && d.category === "curtain") ||
-        (key === "rugs" && d.category === "rug") ||
-        (key === "lamps" && d.category === "lighting")
+      const matched = recoDecor.filter(
+        (d: any) =>
+          d.category === key ||
+          (key === "curtains" && d.category === "curtain") ||
+          (key === "rugs" && d.category === "rug") ||
+          (key === "lamps" && d.category === "lighting")
       );
       if (matched.length > 0) {
         return matched.map((m: any) => ({
@@ -119,27 +164,27 @@ function getCategoryCatalogItems(
       const tablePrice = Math.round(amount * 0.4338);
       const storagePrice = amount - seatingPrice - tablePrice;
       return [
-        { name: `${p} Seating — ${s}`, price: seatingPrice, category: "furniture" },
-        { name: `${p} Table — ${s}`, price: tablePrice, category: "furniture" },
-        { name: `${p} Storage — ${s}`, price: storagePrice, category: "furniture" },
+        { name: `${p} Lounge Seating — ${s}`, price: seatingPrice, category: "furniture" },
+        { name: `${p} Sculptural Table — ${s}`, price: tablePrice, category: "furniture" },
+        { name: `${p} Low Credenza — ${s}`, price: storagePrice, category: "furniture" },
       ];
     }
     case "curtains":
-      return [{ name: `${p} Curtain — ${s}`, price: amount, category: "curtains" }];
+      return [{ name: `${p} Textured Linen Drapes — ${s}`, price: amount, category: "curtains" }];
     case "rugs":
-      return [{ name: `${p} Rug — ${s}`, price: amount, category: "rugs" }];
+      return [{ name: `${p} Hand-knotted Wool Rug — ${s}`, price: amount, category: "rugs" }];
     case "lamps":
-      return [{ name: `${p} Lighting — ${s}`, price: amount, category: "lamps" }];
+      return [{ name: `${p} Brass Floor Luminaire — ${s}`, price: amount, category: "lamps" }];
     case "wall_art":
-      return [{ name: `${p} Wall Art — ${s}`, price: amount, category: "wall_art" }];
+      return [{ name: `${p} Framed Monolith Art — ${s}`, price: amount, category: "wall_art" }];
     case "accent": {
       const mirrorPrice = Math.round(amount * 0.5975);
       const cushionPrice = Math.round(amount * 0.2415);
       const plantPrice = amount - mirrorPrice - cushionPrice;
       return [
-        { name: `${p} Mirror — ${s}`, price: mirrorPrice, category: "accent" },
-        { name: `${p} Cushion — ${s}`, price: cushionPrice, category: "accent" },
-        { name: `${p} Plant — ${s}`, price: plantPrice, category: "accent" },
+        { name: `${p} Arch Wall Mirror — ${s}`, price: mirrorPrice, category: "accent" },
+        { name: `${p} Washed Silk Cushions — ${s}`, price: cushionPrice, category: "accent" },
+        { name: `${p} Ceramic Planter & Botanical — ${s}`, price: plantPrice, category: "accent" },
       ];
     }
     default:
@@ -197,15 +242,15 @@ function getAlternativesForItem(
   const tierConfigs = [
     {
       tier: "Essential",
-      priceMultiplier: 0.74,
+      priceMultiplier: 0.75,
       nameModifier: (base: string) => {
         const clean = base.includes("—") ? base.split("—")[0].trim().replace(p, "").trim() : base;
         return `${p} Studio ${clean || "Essential"} — Minimalist Edition`;
       },
     },
     {
-      tier: "Curated",
-      priceMultiplier: 1.08,
+      tier: "Atelier",
+      priceMultiplier: 1.12,
       nameModifier: (base: string) => {
         const clean = base.includes("—") ? base.split("—")[0].trim().replace(p, "").trim() : base;
         return `${p} Handcrafted ${clean || "Piece"} — ${s}`;
@@ -213,10 +258,10 @@ function getAlternativesForItem(
     },
     {
       tier: "Heritage",
-      priceMultiplier: 1.45,
+      priceMultiplier: 1.48,
       nameModifier: (base: string) => {
         const clean = base.includes("—") ? base.split("—")[0].trim().replace(p, "").trim() : base;
-        return `${p} Atelier ${clean || "Archival"} — Bespoke Selection`;
+        return `${p} Bespoke ${clean || "Archival"} — Limited Edition`;
       },
     },
   ];
@@ -230,7 +275,7 @@ function getAlternativesForItem(
         price: Math.round(rec.price),
         thumbnail: rec.thumbnail || item.thumbnail,
         category,
-        tier: idx === 0 ? "Essential" : idx === 1 ? "Curated" : "Heritage",
+        tier: idx === 0 ? "Essential" : idx === 1 ? "Atelier" : "Heritage",
       });
     });
   }
@@ -239,7 +284,7 @@ function getAlternativesForItem(
     if (results.length < 3) {
       const altPrice = Math.round(basePrice * tc.priceMultiplier);
       const altName = tc.nameModifier(item.name);
-      if (altName !== item.name && !results.some(r => r.name === altName)) {
+      if (altName !== item.name && !results.some((r) => r.name === altName)) {
         results.push({
           name: altName,
           price: altPrice,
@@ -264,7 +309,7 @@ function DonutChart({
   labels: Record<string, string>;
 }) {
   const size = 160;
-  const strokeWidth = 22;
+  const strokeWidth = 20;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
@@ -272,15 +317,20 @@ function DonutChart({
   let accumulatedPercent = 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "14px 0 18px" }}>
-      <div style={{ position: "relative", width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)", borderRadius: "50%" }}>
+    <div className="donut-chart-container">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          style={{ transform: "rotate(-90deg)", borderRadius: "50%" }}
+        >
           <circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
             fill="transparent"
-            stroke="#f0ebe4"
+            stroke="#ECE7DF"
             strokeWidth={strokeWidth}
           />
           {entries.map(([key, amount]) => {
@@ -288,7 +338,7 @@ function DonutChart({
             const strokeDasharray = `${pct * circumference} ${circumference}`;
             const strokeDashoffset = -accumulatedPercent * circumference;
             accumulatedPercent += pct;
-            const color = CATEGORY_COLORS[key] || "#8a7e72";
+            const color = CATEGORY_COLORS[key] || "#8A9A5B";
 
             return (
               <circle
@@ -307,42 +357,58 @@ function DonutChart({
             );
           })}
         </svg>
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-            textAlign: "center",
-          }}
-        >
-          <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8a7e72", fontWeight: 600 }}>Total</span>
-          <strong style={{ fontSize: 14, fontWeight: 700, color: "#1a1816", marginTop: 1 }}>
+        <div className="donut-center-label">
+          <span className="donut-total-tag">Total</span>
+          <strong className="donut-total-amt">
             ₹{Math.round(total).toLocaleString("en-IN")}
           </strong>
         </div>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 10px", marginTop: 10, maxWidth: 300 }}>
+      <div className="donut-legend">
         {entries.map(([key, amount]) => {
           const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
-          const color = CATEGORY_COLORS[key] || "#8a7e72";
+          const color = CATEGORY_COLORS[key] || "#8A9A5B";
           return (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#665e55" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />
-              <span>{labels[key] || key}</span>
-              <strong style={{ fontWeight: 600, color: "#1a1816" }}>{pct}%</strong>
+            <div key={key} className="donut-legend-item">
+              <span className="legend-dot" style={{ background: color }} />
+              <span className="legend-name">{labels[key] || key}</span>
+              <strong className="legend-pct">{pct}%</strong>
             </div>
           );
         })}
       </div>
     </div>
   );
+}
+
+function openFullResolutionImage(src: string) {
+  if (!src) return;
+  if (src.startsWith("data:")) {
+    try {
+      const parts = src.split(",");
+      const mime = parts[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+      return;
+    } catch {
+      const win = window.open("");
+      if (win) {
+        win.document.write(
+          `<!DOCTYPE html><html><head><title>HouseMuse Full Resolution</title><style>html,body{margin:0;padding:0;background:#141210;height:100%;display:flex;align-items:center;justify-content:center;}img{max-width:100%;max-height:100%;object-fit:contain;}</style></head><body><img src="${src}" alt="Full Resolution View" /></body></html>`
+        );
+        win.document.close();
+        return;
+      }
+    }
+  }
+  window.open(src, "_blank");
 }
 
 export default function Studio() {
@@ -354,7 +420,7 @@ export default function Studio() {
   const [scope, setScope] = useState("interior_design");
   const [style, setStyle] = useState("contemporary_indian");
   const [budget, setBudget] = useState("180000");
-  const [dimensions, setDimensions] = useState({ length: "18", width: "12", height: "10" });
+  const [dimensions, setDimensions] = useState({ length: "18", width: "14", height: "10" });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [resultData, setResultData] = useState<Record<string, any> | null>(null);
@@ -365,15 +431,51 @@ export default function Studio() {
   const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
   const [activeAltKey, setActiveAltKey] = useState<string | null>(null);
 
+  const [projectId, setProjectId] = useState<number | null>(null);
+  const [refineHistory, setRefineHistory] = useState<RefineHistoryItem[]>([]);
+  const [refineInput, setRefineInput] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [refineError, setRefineError] = useState("");
+
   const toggleCategory = (key: string) => {
-    setExpandedCategories(prev => ({ ...prev, [key]: !prev[key] }));
+    setExpandedCategories((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const chosenStyle = useMemo(() => styles.find(s => s[0] === style)?.[1], [style]);
+  const chosenStyle = useMemo(() => styles.find((s) => s[0] === style)?.[1], [style]);
+
+  const defaultRoomImage = useMemo(() => {
+    switch (room) {
+      case "bedroom":
+        return "/images/bedroom.jpg";
+      case "dining_room":
+        return "/images/diningroom.jpg";
+      case "bathroom":
+        return "/images/bathroom.jpg";
+      case "kitchen":
+        return "/images/kitchen.jpg";
+      default:
+        return "/images/livingroom.jpg";
+    }
+  }, [room]);
+
+  const resolvedDirectionImage = afterImage || defaultRoomImage;
+
   const chooseFile = (next: File | undefined) => {
     if (!next || !next.type.startsWith("image/")) return;
     setFile(next);
     setPreview(URL.createObjectURL(next));
+  };
+
+  const selectSamplePhoto = async (url: string, name: string) => {
+    setPreview(url);
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const f = new File([blob], name, { type: "image/jpeg" });
+      setFile(f);
+    } catch {
+      // preview stays active
+    }
   };
 
   const next = async () => {
@@ -398,12 +500,31 @@ export default function Studio() {
         image: file || undefined,
       });
       setResultData(res?.result || null);
+      const currentProjId = res?.project?.id;
+      if (currentProjId) {
+        setProjectId(currentProjId);
+      }
+      if (res?.project?.history) {
+        setRefineHistory(res.project.history);
+      }
+      if (res?.project?.generated_image_url) {
+        setAfterImage(res.project.generated_image_url);
+      }
+      if (!preview && res?.project?.source_image) {
+        setPreview(res.project.source_image);
+      }
       try {
-        const projectId = res?.project?.id;
-        const imgRes = await generateImage({ project_id: projectId, style, room_type: room });
-        const url = imgRes?.image_url || imgRes?.variants?.[0]?.image_url;
-        if (url) setAfterImage(url);
-      } catch { /* falls back to static placeholder */ }
+        const imgRes = await generateImage({ project_id: currentProjId, style, room_type: room });
+        const b64 = imgRes?.image_b64 || imgRes?.variants?.[0]?.image_b64;
+        const fullUrl =
+          (b64 ? `data:image/jpeg;base64,${b64}` : "") ||
+          imgRes?.image_url ||
+          imgRes?.variants?.[0]?.image_url ||
+          "";
+        if (fullUrl) setAfterImage(fullUrl);
+      } catch {
+        /* fallback to curated atmospheric photography */
+      }
       setDone(true);
     } catch (err) {
       setErrorMsg(apiError(err));
@@ -412,7 +533,10 @@ export default function Studio() {
     }
   };
 
-  const retry = () => { setErrorMsg(""); };
+  const retry = () => {
+    setErrorMsg("");
+  };
+
   const reset = () => {
     setStep(1);
     setDone(false);
@@ -425,16 +549,70 @@ export default function Studio() {
     setActiveItems(null);
     setActiveMarkerId(null);
     setActiveAltKey(null);
+    setProjectId(null);
+    setRefineHistory([]);
+    setRefineInput("");
+    setRefining(false);
+    setRefineError("");
   };
 
+  const handleRefineSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const prompt = refineInput.trim();
+    if (!prompt || refining) return;
+
+    if (!projectId) {
+      setRefineError("Please wait for your project to finish saving before refining.");
+      return;
+    }
+
+    setRefining(true);
+    setRefineError("");
+    try {
+      const res = await refineImage({ project_id: projectId, instruction: prompt });
+      if (res.success) {
+        const latestImg =
+          (res.image_b64 ? `data:image/jpeg;base64,${res.image_b64}` : "") ||
+          res.resulting_image ||
+          res.image_url;
+
+        if (latestImg) {
+          setAfterImage(latestImg);
+        }
+
+        if (res.history && Array.isArray(res.history)) {
+          setRefineHistory(res.history);
+        } else {
+          setRefineHistory((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              instruction: prompt,
+              resulting_image: latestImg,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
+        setRefineInput("");
+      } else {
+        setRefineError("Refinement could not be completed. Please try again.");
+      }
+    } catch (err) {
+      setRefineError(apiError(err));
+    } finally {
+      setRefining(false);
+    }
+  };
+
+
   const BUDGET_LABELS: Record<string, string> = {
-    furniture: "Furniture",
-    wallpaper: "Wallpaper + paint",
-    curtains: "Curtains",
-    rugs: "Rugs",
-    lamps: "Lamps",
-    wall_art: "Wall art",
-    accent: "Accent",
+    furniture: "Furniture & Seating",
+    wallpaper: "Wall Surface & Treatment",
+    curtains: "Drapes & Window Textiles",
+    rugs: "Rugs & Floor Loom",
+    lamps: "Architectural Lighting",
+    wall_art: "Curated Wall Art",
+    accent: "Material Accents & Flora",
   };
 
   const baseBreakdown: Record<string, number> = useMemo(() => {
@@ -443,10 +621,10 @@ export default function Studio() {
     }
     const totalB = Number(budget) || 180000;
     return {
-      furniture: Math.round(totalB * 0.40),
+      furniture: Math.round(totalB * 0.4),
       wallpaper: Math.round(totalB * 0.15),
       curtains: Math.round(totalB * 0.12),
-      rugs: Math.round(totalB * 0.10),
+      rugs: Math.round(totalB * 0.1),
       lamps: Math.round(totalB * 0.08),
       wall_art: Math.round(totalB * 0.08),
       accent: Math.round(totalB * 0.07),
@@ -479,7 +657,7 @@ export default function Studio() {
     itemIdx: number,
     newItem: { name: string; price: number; thumbnail?: string; category: string }
   ) => {
-    setActiveItems(prev => {
+    setActiveItems((prev) => {
       const map = prev ? { ...prev } : { ...currentItemsMap };
       const list = [...(map[categoryKey] || [])];
       list[itemIdx] = newItem;
@@ -489,13 +667,17 @@ export default function Studio() {
 
   if (errorMsg) {
     return (
-      <main className="product-page studio-page">
-        <div className="loading-orbit">
-          <span className="eyebrow">House Muse / Studio</span>
-          <div className="orbit-mark"><Sparkles size={27} /></div>
-          <h1>That didn't go through.</h1>
-          <p>{errorMsg}</p>
-          <button className="button primary" onClick={retry} style={{ marginTop: 24 }}>Try again</button>
+      <main className="product-page studio-page flex items-center justify-center min-h-[70vh]">
+        <div className="editorial-empty-card max-w-lg w-full text-center">
+          <div className="empty-glyph text-[#A85832]">
+            <Sparkles size={24} />
+          </div>
+          <span className="eyebrow section-label text-[#A85832]">Spatial Analysis Paused</span>
+          <h1 className="headline-serif text-espresso text-3xl my-3">That didn't go through.</h1>
+          <p className="text-sm text-[#655E57] mb-6 leading-relaxed">{errorMsg}</p>
+          <button className="button primary inline-flex items-center gap-2" onClick={retry}>
+            <RotateCcw size={15} /> Try Again
+          </button>
         </div>
       </main>
     );
@@ -503,14 +685,26 @@ export default function Studio() {
 
   if (loading) {
     return (
-      <main className="product-page studio-page">
-        <div className="loading-orbit">
-          <span className="eyebrow">House Muse / Studio</span>
-          <div className="orbit-mark"><Sparkles size={27} /></div>
-          <h1>Reading the room.</h1>
-          <p>Mapping light, proportion, material, and intention into a considered direction.</p>
-          <div className="loading-line"><span /></div>
-          <small>Analysis in progress · This usually takes a moment</small>
+      <main className="product-page studio-page flex items-center justify-center min-h-[75vh]">
+        <div className="editorial-loading-box">
+          <span className="eyebrow section-label">House Muse / Atelier In Session</span>
+          <div className="loading-crosshair-wrap">
+            <div className="loading-crosshair-orbit">
+              <Compass size={36} className="text-[#8A9A5B]" />
+            </div>
+          </div>
+          <h1 className="headline-serif text-espresso text-3xl md:text-5xl mt-5 mb-3">
+            Reading the room.
+          </h1>
+          <p className="text-sm text-[#655E57] max-w-md mx-auto leading-relaxed mb-6">
+            Mapping light axis, proportion, material tactile depth, and catalog allocation into a considered direction.
+          </p>
+          <div className="editorial-pulse-line">
+            <span />
+          </div>
+          <small className="text-xs text-[#8A7E72] mt-4 block">
+            Spatial Analysis in progress · Hand-crafting allocation
+          </small>
         </div>
       </main>
     );
@@ -519,35 +713,93 @@ export default function Studio() {
   if (done) {
     return (
       <main className="product-page studio-page">
-        <div className="result-header">
+        {/* Results Header */}
+        <div className="studio-top">
           <div>
-            <span className="eyebrow">Studio / Direction ready</span>
-            <h1>A room with a point of view.</h1>
-            <p>We interpreted your {room.replaceAll("_", " ")} in a {chosenStyle} direction.</p>
+            <span className="eyebrow section-label">Studio / Spatial Direction Ready</span>
+            <h1 className="headline-serif text-headline">A room with a point of view.</h1>
+            <p className="hero-subhead">
+              We interpreted your {room.replaceAll("_", " ")} in a considered {chosenStyle} language.
+            </p>
           </div>
-          <button className="button ghost" onClick={reset}>Start another room</button>
+          <button className="button ghost" onClick={reset}>
+            <RotateCcw size={15} /> Start Another Room
+          </button>
         </div>
 
+        {/* Dual Panel Comparison + Breakdown Grid */}
         <div className="result-grid">
-          <div className="image-panel before">
-            {preview ? <img src={preview} alt="Uploaded room" /> : (
+          {/* Before Panel with Crosshairs */}
+          <div className="image-panel before arch-panel-framed">
+            <div className="arch-grid-crosshair top-left" aria-hidden="true">+</div>
+            <div className="arch-grid-crosshair top-right" aria-hidden="true">+</div>
+            <div className="arch-grid-crosshair bottom-left" aria-hidden="true">+</div>
+            <div className="arch-grid-crosshair bottom-right" aria-hidden="true">+</div>
+
+            {preview ? (
+              <>
+                <div
+                  className="image-panel-backdrop"
+                  style={{ backgroundImage: `url(${preview})` }}
+                  aria-hidden="true"
+                />
+                <img
+                  className="image-panel-main"
+                  src={preview}
+                  alt="Uploaded room photo"
+                />
+              </>
+            ) : (
               <div className="image-placeholder">
-                <ImagePlus size={25} />
-                <span>Your room photo</span>
+                <ImagePlus size={28} />
+                <span>Room Source Photo</span>
               </div>
             )}
-            <b>Before</b>
+            <b className="panel-badge-clean">01 / Measured Before</b>
+            {preview && (
+              <button
+                type="button"
+                className="floating-expand-btn"
+                aria-label="Expand uploaded room"
+                onClick={() => openFullResolutionImage(preview)}
+              >
+                <Maximize2 size={15} />
+              </button>
+            )}
           </div>
 
-          {/* Part A: After image with interactive numbered markers and popovers */}
-          <div className="image-panel after" style={{ position: "relative" }}>
-            <img src={afterImage || "/manus-storage/house-muse-editorial-room_559afaf4.jpg"} alt="Generated interior direction" />
-            <b>After / Direction</b>
-            {!afterImage && (
-              <span className="image-note">Preview imagery may be generic while room regeneration is being trained.</span>
-            )}
+          {/* After Panel with Interactive Numbered Markers and Crosshairs */}
+          <div className="image-panel after arch-panel-framed">
+            <div className="arch-grid-crosshair top-left" aria-hidden="true">+</div>
+            <div className="arch-grid-crosshair top-right" aria-hidden="true">+</div>
+            <div className="arch-grid-crosshair bottom-left" aria-hidden="true">+</div>
+            <div className="arch-grid-crosshair bottom-right" aria-hidden="true">+</div>
 
-            {ROOM_MARKERS.map(marker => {
+            <div
+              className="image-panel-backdrop"
+              style={{ backgroundImage: `url(${resolvedDirectionImage})` }}
+              aria-hidden="true"
+            />
+            <img
+              className="image-panel-main"
+              src={resolvedDirectionImage}
+              alt="Generated interior direction"
+            />
+            <span className="arch-badge-olive result-badge">
+              02 / DIRECTION: {chosenStyle?.toUpperCase()}
+            </span>
+
+            <button
+              type="button"
+              className="floating-expand-btn"
+              aria-label="Expand generated room"
+              onClick={() => openFullResolutionImage(resolvedDirectionImage)}
+            >
+              <Maximize2 size={15} />
+            </button>
+
+            {/* Interactive Pins */}
+            {ROOM_MARKERS.map((marker) => {
               const item = currentItemsMap[marker.category]?.[marker.itemIndex] || currentItemsMap[marker.category]?.[0];
               if (!item) return null;
               const isActive = activeMarkerId === marker.id;
@@ -560,7 +812,7 @@ export default function Studio() {
                     top: marker.top,
                     left: marker.left,
                     transform: "translate(-50%, -50%)",
-                    zIndex: isActive ? 40 : 20,
+                    zIndex: isActive ? 45 : 20,
                   }}
                 >
                   <button
@@ -570,24 +822,7 @@ export default function Studio() {
                       setActiveMarkerId(isActive ? null : marker.id);
                     }}
                     aria-label={`Marker ${marker.id}: ${item.name}`}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      background: isActive ? "var(--terracotta, #b45309)" : "rgba(26, 24, 22, 0.88)",
-                      color: "#ffffff",
-                      border: "2px solid #ffffff",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      display: "grid",
-                      placeItems: "center",
-                      cursor: "pointer",
-                      boxShadow: isActive
-                        ? "0 0 0 4px rgba(180, 83, 9, 0.35), 0 4px 12px rgba(0,0,0,0.35)"
-                        : "0 2px 8px rgba(0,0,0,0.3)",
-                      transition: "all 0.2s ease",
-                      padding: 0,
-                    }}
+                    className={`marker-pin ${isActive ? "active" : ""}`}
                   >
                     {marker.id}
                   </button>
@@ -595,53 +830,36 @@ export default function Studio() {
                   {isActive && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: "absolute",
-                        bottom: "calc(100% + 10px)",
-                        left: marker.alignRight ? "auto" : "50%",
-                        right: marker.alignRight ? "-12px" : "auto",
-                        transform: marker.alignRight ? "none" : "translateX(-50%)",
-                        background: "#ffffff",
-                        borderRadius: 10,
-                        padding: "10px 12px",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)",
-                        border: "1px solid #e8e2dc",
-                        width: 210,
-                        zIndex: 50,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        textAlign: "left",
-                      }}
+                      className={`marker-popover ${marker.alignRight ? "align-right" : "align-center"}`}
                     >
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
-                        <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8a7e72", fontWeight: 700 }}>
+                      <div className="popover-top">
+                        <span className="popover-cat">
                           {BUDGET_LABELS[marker.category] || marker.category} · #{marker.id}
                         </span>
                         <button
                           type="button"
                           onClick={() => setActiveMarkerId(null)}
-                          style={{ background: "transparent", border: "none", padding: 2, cursor: "pointer", color: "#8a7e72", display: "grid", placeItems: "center" }}
+                          className="popover-close"
                         >
-                          <X size={13} />
+                          <X size={12} />
                         </button>
                       </div>
 
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 6, background: "#f2ece4", overflow: "hidden", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <div className="popover-body">
+                        <div className="popover-thumb">
                           {item.thumbnail ? (
-                            <img src={item.thumbnail} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <img src={item.thumbnail} alt={item.name} />
                           ) : (
                             <ItemThumbnailIcon category={item.category || marker.category} />
                           )}
                         </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1816", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }} title={item.name}>
+                        <div className="popover-meta">
+                          <span className="popover-title" title={item.name}>
                             {item.name}
-                          </div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--terracotta, #b45309)", marginTop: 3 }}>
+                          </span>
+                          <span className="popover-price">
                             ₹{Math.round(item.price).toLocaleString("en-IN")}
-                          </div>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -651,171 +869,124 @@ export default function Studio() {
             })}
           </div>
 
-          <aside className="breakdown">
-            <span className="eyebrow">Budget / ₹{Math.round(liveTotal).toLocaleString("en-IN")}</span>
-            <h2>A measured allocation.</h2>
+          {/* Allocation & Catalog Line-Items */}
+          <aside className="breakdown arch-breakdown-card">
+            <span className="eyebrow section-label">
+              Measured Allocation / ₹{Math.round(liveTotal).toLocaleString("en-IN")}
+            </span>
+            <h2 className="headline-serif text-espresso text-2xl mb-2">
+              Proportion & Budget
+            </h2>
 
-            {/* Part B: Live SVG Donut Chart updated with catalog selections */}
+            {/* Donut Chart */}
             <DonutChart breakdown={liveCategorySubtotals} total={liveTotal} labels={BUDGET_LABELS} />
 
-            {/* Part B: Line-item list with expandable alternatives, live subtotal recalculation */}
-            {Object.entries(currentItemsMap).map(([key, items]) => {
-              const subtotal = liveCategorySubtotals[key] || 0;
-              const isExpanded = !!expandedCategories[key];
-              const pct = liveTotal > 0 ? (subtotal / liveTotal) * 100 : 0;
-              const catColor = CATEGORY_COLORS[key] || "var(--terracotta, #b45309)";
+            {/* Line items with interactive tier alternatives */}
+            <div className="breakdown-list">
+              {Object.entries(currentItemsMap).map(([key, items]) => {
+                const subtotal = liveCategorySubtotals[key] || 0;
+                const isExpanded = !!expandedCategories[key];
+                const pct = liveTotal > 0 ? (subtotal / liveTotal) * 100 : 0;
+                const catColor = CATEGORY_COLORS[key] || "#8A9A5B";
 
-              return (
-                <div className="budget-category-group" key={key} style={{ marginBottom: 12 }}>
-                  <div
-                    className="budget-row"
-                    onClick={() => toggleCategory(key)}
-                    style={{ cursor: "pointer", userSelect: "none", margin: "12px 0 6px" }}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isExpanded}
-                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCategory(key); } }}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {isExpanded ? <ChevronUp size={13} style={{ color: "#8a7e72" }} /> : <ChevronDown size={13} style={{ color: "#8a7e72" }} />}
-                      {BUDGET_LABELS[key] || key}
-                      <span style={{ fontSize: 10, color: "#9a8f83", background: "#f2ece4", padding: "1px 6px", borderRadius: 4, fontWeight: 500 }}>
-                        {items.length} {items.length === 1 ? "item" : "items"}
+                return (
+                  <div className="budget-category-group" key={key}>
+                    <div
+                      className="budget-row"
+                      onClick={() => toggleCategory(key)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleCategory(key);
+                        }
+                      }}
+                    >
+                      <span className="cat-title-wrap">
+                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        {BUDGET_LABELS[key] || key}
+                        <span className="cat-item-count">
+                          {items.length} {items.length === 1 ? "item" : "items"}
+                        </span>
                       </span>
-                    </span>
-                    <strong>₹{Math.round(subtotal).toLocaleString("en-IN")}</strong>
-                    <i><em style={{ width: `${pct}%`, background: catColor }} /></i>
-                  </div>
+                      <strong>₹{Math.round(subtotal).toLocaleString("en-IN")}</strong>
+                      <i className="progress-track">
+                        <em style={{ width: `${pct}%`, background: catColor }} />
+                      </i>
+                    </div>
 
-                  {isExpanded && (
-                    <div style={{ background: "#faf7f4", borderRadius: 8, padding: "10px 12px", border: "1px solid #eee8e2", marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {items.map((item, idx) => {
-                          const itemKey = `${key}-${idx}`;
-                          const isSelectedForAlt = activeAltKey === itemKey;
-                          const alternatives = isSelectedForAlt ? getAlternativesForItem(item, key, style, resultData) : [];
+                    {isExpanded && (
+                      <div className="alternatives-drawer">
+                        <div className="items-list-wrap">
+                          {items.map((item, idx) => {
+                            const itemKey = `${key}-${idx}`;
+                            const isSelectedForAlt = activeAltKey === itemKey;
+                            const alternatives = isSelectedForAlt
+                              ? getAlternativesForItem(item, key, style, resultData)
+                              : [];
 
-                          return (
-                            <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                              <div
-                                onClick={() => setActiveAltKey(isSelectedForAlt ? null : itemKey)}
-                                role="button"
-                                tabIndex={0}
-                                aria-expanded={isSelectedForAlt}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setActiveAltKey(isSelectedForAlt ? null : itemKey);
-                                  }
-                                }}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 10,
-                                  fontSize: 11,
-                                  padding: "6px 8px",
-                                  borderRadius: 6,
-                                  cursor: "pointer",
-                                  background: isSelectedForAlt ? "#f2ece4" : "transparent",
-                                  transition: "background 0.15s ease",
-                                  border: isSelectedForAlt ? "1px solid #e0d7cd" : "1px solid transparent",
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                                  <div style={{ width: 28, height: 28, borderRadius: 5, background: "#ece5dc", display: "grid", placeItems: "center", overflow: "hidden", flexShrink: 0 }}>
-                                    {item.thumbnail ? (
-                                      <img src={item.thumbnail} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                    ) : (
-                                      <ItemThumbnailIcon category={item.category || key} />
-                                    )}
-                                  </div>
-                                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                                    <span style={{ color: "#3d3833", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.name}>
-                                      {item.name}
-                                    </span>
-                                    <span style={{ fontSize: 9, color: "#8a7e72", display: "flex", alignItems: "center", gap: 3 }}>
-                                      <ArrowLeftRight size={9} /> Tap to see alternatives
-                                    </span>
-                                  </div>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                  <span style={{ fontWeight: 600, color: "#1a1816", whiteSpace: "nowrap" }}>
-                                    ₹{Math.round(item.price).toLocaleString("en-IN")}
-                                  </span>
-                                  <ChevronDown
-                                    size={12}
-                                    style={{
-                                      color: "#8a7e72",
-                                      transform: isSelectedForAlt ? "rotate(180deg)" : "none",
-                                      transition: "transform 0.2s ease",
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Alternatives Drawer */}
-                              {isSelectedForAlt && (
+                            return (
+                              <div key={idx} className="item-slot">
                                 <div
-                                  style={{
-                                    background: "#ffffff",
-                                    border: "1px solid #e5ded7",
-                                    borderRadius: 7,
-                                    padding: "8px 10px",
-                                    margin: "2px 0 6px 12px",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 6,
-                                  }}
+                                  onClick={() => setActiveAltKey(isSelectedForAlt ? null : itemKey)}
+                                  role="button"
+                                  tabIndex={0}
+                                  className={`item-slot-header ${isSelectedForAlt ? "selected" : ""}`}
                                 >
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8a7e72" }}>
-                                      Select Alternative ({alternatives.length} price points)
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveAltKey(null);
-                                      }}
-                                      style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", color: "#9a8f83" }}
-                                    >
-                                      <X size={12} />
-                                    </button>
+                                  <div className="item-slot-left">
+                                    <div className="item-slot-icon">
+                                      {item.thumbnail ? (
+                                        <img src={item.thumbnail} alt={item.name} />
+                                      ) : (
+                                        <ItemThumbnailIcon category={item.category || key} />
+                                      )}
+                                    </div>
+                                    <div className="item-slot-meta">
+                                      <span className="item-name" title={item.name}>{item.name}</span>
+                                      <span className="item-alt-hint">
+                                        <ArrowLeftRight size={9} /> Tap to see alternatives
+                                      </span>
+                                    </div>
                                   </div>
+                                  <div className="item-slot-right">
+                                    <span className="item-price">
+                                      ₹{Math.round(item.price).toLocaleString("en-IN")}
+                                    </span>
+                                    <ChevronDown
+                                      size={12}
+                                      style={{
+                                        transform: isSelectedForAlt ? "rotate(180deg)" : "none",
+                                        transition: "transform 0.2s ease",
+                                      }}
+                                    />
+                                  </div>
+                                </div>
 
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                    {alternatives.map((alt, aIdx) => {
-                                      const diff = alt.price - item.price;
-                                      const isCurrent = alt.name === item.name;
-                                      return (
-                                        <div
-                                          key={aIdx}
-                                          onClick={() => {
-                                            handleReplaceItem(key, idx, {
-                                              name: alt.name,
-                                              price: alt.price,
-                                              thumbnail: alt.thumbnail || item.thumbnail,
-                                              category: key,
-                                            });
-                                            setActiveAltKey(null);
-                                          }}
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            padding: "6px 8px",
-                                            borderRadius: 5,
-                                            border: isCurrent ? "1px solid var(--terracotta, #b45309)" : "1px solid #eee8e2",
-                                            background: isCurrent ? "#fdf8f4" : "#faf7f4",
-                                            cursor: "pointer",
-                                            transition: "all 0.15s ease",
-                                          }}
-                                          role="button"
-                                          tabIndex={0}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter" || e.key === " ") {
-                                              e.preventDefault();
+                                {isSelectedForAlt && (
+                                  <div className="tier-selector-box">
+                                    <div className="tier-header">
+                                      <span>Select Price Tier ({alternatives.length} options)</span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveAltKey(null);
+                                        }}
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+
+                                    <div className="tier-options-list">
+                                      {alternatives.map((alt, aIdx) => {
+                                        const diff = alt.price - item.price;
+                                        const isCurrent = alt.name === item.name;
+                                        return (
+                                          <div
+                                            key={aIdx}
+                                            onClick={() => {
                                               handleReplaceItem(key, idx, {
                                                 name: alt.name,
                                                 price: alt.price,
@@ -823,225 +994,505 @@ export default function Studio() {
                                                 category: key,
                                               });
                                               setActiveAltKey(null);
-                                            }
-                                          }}
-                                        >
-                                          <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, paddingRight: 6 }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                              <span
-                                                style={{
-                                                  fontSize: 8,
-                                                  fontWeight: 700,
-                                                  textTransform: "uppercase",
-                                                  padding: "1px 4px",
-                                                  borderRadius: 3,
-                                                  background: alt.tier === "Essential" ? "#e6f0fa" : alt.tier === "Heritage" ? "#faede6" : "#f0ede6",
-                                                  color: alt.tier === "Essential" ? "#1e5b94" : alt.tier === "Heritage" ? "#9c4217" : "#595248",
-                                                }}
-                                              >
+                                            }}
+                                            className={`tier-option-card ${isCurrent ? "active" : ""}`}
+                                          >
+                                            <div className="tier-card-left">
+                                              <span className={`tier-badge tier-${alt.tier.toLowerCase()}`}>
                                                 {alt.tier}
                                               </span>
-                                              <span style={{ fontSize: 10, fontWeight: 500, color: "#2d2620", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={alt.name}>
-                                                {alt.name}
-                                              </span>
+                                              <span className="tier-name" title={alt.name}>{alt.name}</span>
                                             </div>
-                                          </div>
-                                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                            <div style={{ textAlign: "right" }}>
-                                              <div style={{ fontSize: 11, fontWeight: 700, color: "#1a1816" }}>
-                                                ₹{Math.round(alt.price).toLocaleString("en-IN")}
+                                            <div className="tier-card-right">
+                                              <div className="tier-price-wrap">
+                                                <span className="tier-price">
+                                                  ₹{Math.round(alt.price).toLocaleString("en-IN")}
+                                                </span>
+                                                {diff !== 0 && (
+                                                  <span className={`tier-diff ${diff > 0 ? "plus" : "minus"}`}>
+                                                    {diff > 0
+                                                      ? `+₹${Math.round(diff).toLocaleString("en-IN")}`
+                                                      : `-₹${Math.round(Math.abs(diff)).toLocaleString("en-IN")}`}
+                                                  </span>
+                                                )}
                                               </div>
-                                              {diff !== 0 && (
-                                                <div style={{ fontSize: 8, fontWeight: 600, color: diff > 0 ? "#b45309" : "#2d7a4d" }}>
-                                                  {diff > 0 ? `+₹${Math.round(diff).toLocaleString("en-IN")}` : `-₹${Math.round(Math.abs(diff)).toLocaleString("en-IN")}`}
-                                                </div>
-                                              )}
+                                              <button type="button" className={`tier-select-btn ${isCurrent ? "current" : ""}`}>
+                                                {isCurrent ? "Current" : "Select"}
+                                              </button>
                                             </div>
-                                            <button
-                                              type="button"
-                                              style={{
-                                                padding: "3px 7px",
-                                                fontSize: 9,
-                                                fontWeight: 600,
-                                                borderRadius: 4,
-                                                background: isCurrent ? "#eae3dc" : "var(--terracotta, #b45309)",
-                                                color: isCurrent ? "#554e46" : "#ffffff",
-                                                border: "none",
-                                                cursor: "pointer",
-                                              }}
-                                            >
-                                              {isCurrent ? "Current" : "Select"}
-                                            </button>
                                           </div>
-                                        </div>
-                                      );
-                                    })}
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed #ded7cf", paddingTop: 6, fontSize: 11 }}>
-                        <span style={{ color: "#7a7065", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: 10, fontWeight: 600 }}>Category Subtotal</span>
-                        <strong style={{ color: "var(--terracotta, #b45309)", fontWeight: 600 }}>
-                          ₹{Math.round(subtotal).toLocaleString("en-IN")}
-                        </strong>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             <p className="fine-print">
-              Interactive allocation: tap any item to explore price-tier alternatives, preview live rebalanced totals, and inspect room markers.
+              Live spatial allocation: tap any item to explore price-tier alternatives, preview rebalanced totals, and inspect room markers.
             </p>
           </aside>
         </div>
+
+        {/* Studio Image Refinement Chat Panel */}
+        <section className="studio-refine-panel" aria-label="Refine Design Direction">
+          <div className="refine-panel-header">
+            <div className="refine-panel-title-wrap">
+              <span className="eyebrow section-label">Iterative Spatial Dialogue</span>
+              <h3>Refine Your Direction</h3>
+              <p>
+                Request targeted spatial adjustments (e.g. &ldquo;make the bed smaller, add a reading chair&rdquo; or &ldquo;warm up the lighting and swap in brass finishes&rdquo;).
+              </p>
+            </div>
+            {refineHistory.length > 0 && (
+              <span className="refine-count-pill">
+                <MessageSquare size={12} />
+                {refineHistory.length} {refineHistory.length === 1 ? "iteration" : "iterations"}
+              </span>
+            )}
+          </div>
+
+          {/* Refinement Thread: User instruction -> Resulting thumbnail */}
+          {refineHistory.length > 0 ? (
+            <div className="refine-thread">
+              {refineHistory.map((item, idx) => (
+                <div key={item.id || idx} className="refine-item">
+                  {item.resulting_image && (
+                    <button
+                      type="button"
+                      className="refine-thumb-button"
+                      title="Click to view full resolution"
+                      onClick={() => openFullResolutionImage(item.resulting_image)}
+                    >
+                      <img src={item.resulting_image} alt={`Iteration #${idx + 1}`} />
+                      <div className="refine-thumb-overlay">
+                        <Maximize2 size={16} />
+                      </div>
+                    </button>
+                  )}
+                  <div className="refine-item-body">
+                    <div>
+                      <div className="refine-item-top">
+                        <span className="refine-item-index">Iteration 0{idx + 1}</span>
+                        {item.created_at && (
+                          <span className="refine-item-time">
+                            {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
+                      </div>
+                      <p className="refine-item-text">&ldquo;{item.instruction}&rdquo;</p>
+                    </div>
+                    {item.resulting_image && (
+                      <button
+                        type="button"
+                        className="refine-apply-btn"
+                        onClick={() => setAfterImage(item.resulting_image)}
+                      >
+                        Set as active direction view →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="refine-empty-state">
+              <div className="refine-empty-icon">
+                <Sparkles size={18} />
+              </div>
+              <p>
+                No refinements applied yet. Guide the AI model with conversational cues to evolve furniture scale, materials, palette accents, or layout balance.
+              </p>
+            </div>
+          )}
+
+          {/* Input + Send Button Form */}
+          <form onSubmit={handleRefineSubmit} className="refine-input-form">
+            <input
+              type="text"
+              value={refineInput}
+              onChange={(e) => setRefineInput(e.target.value)}
+              placeholder="e.g. Replace the armchair with a cognac leather lounger, add sheer linen curtains..."
+              disabled={refining}
+              className="refine-input-field"
+            />
+            <button
+              type="submit"
+              disabled={refining || !refineInput.trim()}
+              className="button primary refine-send-btn"
+            >
+              {refining ? (
+                <>
+                  <Loader2 size={15} className="refine-spin-icon" />
+                  <span>Refining...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={14} />
+                  <span>Send Request</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Loading state indicator */}
+          {refining && (
+            <div className="refine-loading-banner" role="status" aria-live="polite">
+              <Loader2 size={16} className="refine-spin-icon" />
+              <span>
+                Regenerating spatial composition with img2img conditioning and subtle diffusion passes... This typically takes several seconds.
+              </span>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {refineError && (
+            <div className="refine-error-banner" role="alert">
+              {refineError}
+            </div>
+          )}
+        </section>
       </main>
+
     );
   }
 
   return (
     <main className="product-page studio-page">
+      {/* Studio Header */}
       <div className="studio-top">
         <div>
-          <span className="eyebrow">House Muse / Studio</span>
-          <h1>Give the room a point of view.</h1>
+          <span className="eyebrow section-label">House Muse · Atelier & Spatial Studio</span>
+          <h1 className="headline-serif text-headline">We Design The Feeling Of Home.</h1>
+          <p className="hero-subhead">
+            Provide a photograph, spatial coordinates, and an architectural language to shape your room.
+          </p>
         </div>
-        <Link href="/" className="back-link"><ArrowLeft size={15} /> Exit studio</Link>
+        <Link href="/" className="back-link">
+          <ArrowLeft size={15} /> Exit Studio
+        </Link>
       </div>
 
       <div className="studio-layout">
-        <aside className="steps">
-          {["Upload", "Room details", "Style", "Budget"].map((label, i) => (
-            <div className={step === i + 1 ? "step active" : step > i + 1 ? "step complete" : "step"} key={label}>
-              <span>{step > i + 1 ? <Check size={14} /> : `0${i + 1}`}</span>
-              <b>{label}</b>
-            </div>
-          ))}
+        {/* Horizontal & Vertical Step Track */}
+        <aside className="steps-container">
+          <div className="steps-track">
+            {["Upload", "Room Details", "Style Language", "Budget"].map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                className={`step-btn ${step === i + 1 ? "active" : step > i + 1 ? "complete" : ""}`}
+                onClick={() => {
+                  if (i + 1 < step) setStep(i + 1);
+                }}
+              >
+                <span className="step-circle">
+                  {step > i + 1 ? <Check size={13} /> : `0${i + 1}`}
+                </span>
+                <span className="step-text">{label}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="studio-aside-note">
-            <Ruler size={17} />
-            <p>Every recommendation begins with the dimensions of your actual room.</p>
+            <Ruler size={16} />
+            <p>Every allocation begins with the real dimensions of your actual ceiling, walls, and doorway light.</p>
           </div>
         </aside>
 
-        <section className="studio-form">
+        {/* Step Forms */}
+        <section className="studio-form-card">
+          {/* STEP 1: UPLOAD */}
           {step === 1 && (
             <div className="form-section">
-              <span className="eyebrow">01 / The starting point</span>
-              <h2>Show us the room as it is.</h2>
-              <p className="section-copy">One photograph is enough to begin. Natural light works best, but lived-in is welcome.</p>
+              <span className="eyebrow section-label">01 / The Starting Point</span>
+              <h2 className="headline-serif text-espresso text-3xl mb-2">Show us the room as it is.</h2>
+              <p className="section-copy">
+                One photograph is enough to begin. Natural daylight works best, but lived-in corners are warmly welcomed.
+              </p>
+
               <div
-                className="upload-zone"
+                className="upload-zone arch-panel-framed"
                 role="button"
                 tabIndex={0}
                 onClick={() => inputRef.current?.click()}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); } }}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); chooseFile(e.dataTransfer.files[0]); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    inputRef.current?.click();
+                  }
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  chooseFile(e.dataTransfer.files[0]);
+                }}
               >
+                <div className="arch-grid-crosshair top-left" aria-hidden="true">+</div>
+                <div className="arch-grid-crosshair top-right" aria-hidden="true">+</div>
+                <div className="arch-grid-crosshair bottom-left" aria-hidden="true">+</div>
+                <div className="arch-grid-crosshair bottom-right" aria-hidden="true">+</div>
+
                 {preview ? (
-                  <img src={preview} alt="Room preview" />
+                  <div className="preview-container">
+                    <img src={preview} alt="Uploaded room preview" />
+                    <button
+                      type="button"
+                      className="floating-expand-btn"
+                      aria-label="Expand uploaded room"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openFullResolutionImage(preview);
+                      }}
+                    >
+                      <Maximize2 size={15} />
+                    </button>
+                  </div>
                 ) : (
-                  <>
-                    <ImagePlus size={27} />
-                    <strong>Drop a room photo here</strong>
-                    <span>Choose an image from your device</span>
-                    <button type="button" className="browse-button" onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}>Browse files</button>
-                  </>
+                  <div className="upload-prompt">
+                    <div className="upload-icon-circle">
+                      <ImagePlus size={26} />
+                    </div>
+                    <strong>Drop your room photograph here</strong>
+                    <span>High resolution JPEG, PNG, or WebP</span>
+                    <button
+                      type="button"
+                      className="browse-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        inputRef.current?.click();
+                      }}
+                    >
+                      Browse Device Photos
+                    </button>
+                  </div>
                 )}
-                <input className="native-file-input" ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/*" onChange={e => chooseFile(e.target.files?.[0])} />
+                <input
+                  className="native-file-input"
+                  ref={inputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/*"
+                  onChange={(e) => chooseFile(e.target.files?.[0])}
+                />
               </div>
+
+              {/* Sample Photo Chooser */}
+              <div className="sample-photo-bar">
+                <span className="sample-label">Or test with an architectural study:</span>
+                <div className="sample-chips">
+                  <button
+                    type="button"
+                    className="sample-chip"
+                    onClick={() => selectSamplePhoto("/images/livingroom.jpg", "livingroom_study.jpg")}
+                  >
+                    Living Room Teak
+                  </button>
+                  <button
+                    type="button"
+                    className="sample-chip"
+                    onClick={() => selectSamplePhoto("/images/bedroom.jpg", "bedroom_sanctuary.jpg")}
+                  >
+                    Sanctuary Bedroom
+                  </button>
+                  <button
+                    type="button"
+                    className="sample-chip"
+                    onClick={() => selectSamplePhoto("/images/diningroom.jpg", "diningroom_gathering.jpg")}
+                  >
+                    Dining Gathering
+                  </button>
+                </div>
+              </div>
+
               {file && (
                 <div className="file-chip">
-                  <Check size={15} /> {file.name}
-                  <button onClick={() => { setFile(null); setPreview(""); }}>Remove</button>
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-[#8A9A5B]" /> {file.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      setPreview("");
+                    }}
+                  >
+                    Remove
+                  </button>
                 </div>
               )}
             </div>
           )}
 
+          {/* STEP 2: COORDINATES */}
           {step === 2 && (
             <div className="form-section">
-              <span className="eyebrow">02 / The coordinates</span>
-              <h2>Tell us what we’re working with.</h2>
-              <p className="section-copy">Dimensions are entered in feet and translated to metres for analysis.</p>
-              <div className="field-grid three">
-                <label>Length <input type="number" value={dimensions.length} onChange={e => setDimensions({ ...dimensions, length: e.target.value })} min="1" /><span>ft</span></label>
-                <label>Width <input type="number" value={dimensions.width} onChange={e => setDimensions({ ...dimensions, width: e.target.value })} min="1" /><span>ft</span></label>
-                <label>Height <input type="number" value={dimensions.height} onChange={e => setDimensions({ ...dimensions, height: e.target.value })} min="1" /><span>ft</span></label>
+              <span className="eyebrow section-label">02 / Spatial Coordinates</span>
+              <h2 className="headline-serif text-espresso text-3xl mb-2">Tell us what we’re working with.</h2>
+              <p className="section-copy">
+                Exact room measurements allow us to allocate furniture scales that breathe naturally in your space.
+              </p>
+
+              <div className="dimensions-grid">
+                <label className="dimension-field">
+                  <span>Length</span>
+                  <div className="dim-input-wrap">
+                    <input
+                      type="number"
+                      value={dimensions.length}
+                      onChange={(e) => setDimensions({ ...dimensions, length: e.target.value })}
+                      min="1"
+                    />
+                    <small>ft</small>
+                  </div>
+                </label>
+                <label className="dimension-field">
+                  <span>Width</span>
+                  <div className="dim-input-wrap">
+                    <input
+                      type="number"
+                      value={dimensions.width}
+                      onChange={(e) => setDimensions({ ...dimensions, width: e.target.value })}
+                      min="1"
+                    />
+                    <small>ft</small>
+                  </div>
+                </label>
+                <label className="dimension-field">
+                  <span>Ceiling Height</span>
+                  <div className="dim-input-wrap">
+                    <input
+                      type="number"
+                      value={dimensions.height}
+                      onChange={(e) => setDimensions({ ...dimensions, height: e.target.value })}
+                      min="1"
+                    />
+                    <small>ft</small>
+                  </div>
+                </label>
               </div>
-              <label className="field-label">
-                Room type
-                <select value={room} onChange={e => setRoom(e.target.value)}>
-                  {roomTypes.map(([id, name]) => <option value={id} key={id}>{name}</option>)}
-                </select>
-              </label>
-              <label className="field-label">
-                Scope
-                <select value={scope} onChange={e => setScope(e.target.value)}>
-                  <option value="home_decor">Home decor</option>
-                  <option value="interior_design">Interior design</option>
-                  <option value="full_makeover">Full makeover</option>
-                </select>
-              </label>
+
+              <div className="select-row-group">
+                <label className="field-label">
+                  <span>Room Type</span>
+                  <select value={room} onChange={(e) => setRoom(e.target.value)}>
+                    {roomTypes.map(([id, name]) => (
+                      <option value={id} key={id}>{name}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field-label">
+                  <span>Project Scope</span>
+                  <select value={scope} onChange={(e) => setScope(e.target.value)}>
+                    <option value="home_decor">Home Decor & Accents (Layered curation)</option>
+                    <option value="interior_design">Interior Design (Furniture, Lighting & Walls)</option>
+                    <option value="full_makeover">Full Architectural Transformation</option>
+                  </select>
+                </label>
+              </div>
             </div>
           )}
 
+          {/* STEP 3: STYLE LANGUAGE */}
           {step === 3 && (
             <div className="form-section">
-              <span className="eyebrow">03 / The atmosphere</span>
-              <h2>Choose a language for the room.</h2>
-              <p className="section-copy">Pick one direction now. You can refine the details once the first read is ready.</p>
+              <span className="eyebrow section-label">03 / The Atmosphere</span>
+              <h2 className="headline-serif text-espresso text-3xl mb-2">Choose a language for the room.</h2>
+              <p className="section-copy">
+                Pick a foundational direction. You can customize materials and price-tiers once the first allocation is drawn.
+              </p>
+
               <div className="style-grid">
                 {styles.map(([id, name, desc]) => (
-                  <button className={style === id ? "style-option selected" : "style-option"} key={id} onClick={() => setStyle(id)}>
-                    <span>{name}</span>
-                    <small>{desc}</small>
-                    {style === id && <Check size={16} />}
+                  <button
+                    type="button"
+                    className={`style-option-card ${style === id ? "selected" : ""}`}
+                    key={id}
+                    onClick={() => setStyle(id)}
+                  >
+                    <div className="style-option-header">
+                      <span className="style-title">{name}</span>
+                      {style === id ? (
+                        <div className="check-ring active">
+                          <Check size={14} />
+                        </div>
+                      ) : (
+                        <div className="check-ring" />
+                      )}
+                    </div>
+                    <small className="style-desc">{desc}</small>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* STEP 4: BUDGET BOUNDARY */}
           {step === 4 && (
             <div className="form-section">
-              <span className="eyebrow">04 / The boundary</span>
-              <h2>Give the idea a budget.</h2>
-              <p className="section-copy">A real number gives every recommendation a useful point of view.</p>
-              <div className="budget-display">
-                <span>₹</span>
-                <input value={budget} onChange={e => setBudget(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" />
-                <small>INR total budget</small>
+              <span className="eyebrow section-label">04 / The Boundary</span>
+              <h2 className="headline-serif text-espresso text-3xl mb-2">Give the idea a budget.</h2>
+              <p className="section-copy">
+                A real number anchors every recommendation to functional catalog items with transparent price tiers.
+              </p>
+
+              <div className="budget-hero-display">
+                <span className="currency-symbol">₹</span>
+                <input
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value.replace(/[^0-9]/g, ""))}
+                  inputMode="numeric"
+                  className="budget-number-input"
+                />
+                <span className="currency-unit">INR Total Allocation</span>
               </div>
-              <input className="range" type="range" min="50000" max="600000" step="10000" value={budget} onChange={e => setBudget(e.target.value)} />
-              <div className="range-labels">
-                <span>₹50,000</span>
-                <span>₹6,00,000</span>
+
+              <div className="range-slider-wrapper">
+                <input
+                  className="range"
+                  type="range"
+                  min="50000"
+                  max="600000"
+                  step="10000"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                />
+                <div className="range-labels">
+                  <span>₹50,000 (Minimalist Layering)</span>
+                  <span>₹6,00,000 (Atelier Full Suite)</span>
+                </div>
               </div>
+
               <div className="save-note">
                 <span className="dot" />
                 <div>
-                  <b>Save this direction to your dashboard</b>
-                  <p>You can revisit the brief and catalog recommendations later.</p>
+                  <b>Preserve this direction to your Spatial Portfolio</b>
+                  <p>You can revisit the catalog breakdown, trade alternatives, and render new variations anytime.</p>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Form Navigation Actions */}
           <div className="form-actions">
             {step > 1 ? (
-              <button className="button ghost" onClick={() => setStep(step - 1)}>
-                <ArrowLeft size={15} /> Back
+              <button type="button" className="button ghost" onClick={() => setStep(step - 1)}>
+                <ArrowLeft size={15} /> Previous Step
               </button>
-            ) : <span />}
-            <button className="button primary" onClick={next}>
-              {step === 4 ? "Analyse my room" : "Continue"}
+            ) : (
+              <span />
+            )}
+            <button type="button" className="button primary" onClick={next}>
+              {step === 4 ? "Analyse & Measure Room" : "Continue to Next Step"}
               <ArrowRight size={15} />
             </button>
           </div>

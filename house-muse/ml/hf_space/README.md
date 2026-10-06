@@ -1,7 +1,7 @@
 ---
 title: House Muse Interior Redesign
 emoji: 🏠
-colorFrom: blue 
+colorFrom: blue
 colorTo: purple
 sdk: gradio
 sdk_version: 5.20.0
