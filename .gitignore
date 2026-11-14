@@ -1,21 +1,84 @@
+
+# ==========================================
+# PYTHON
+# ==========================================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# ==========================================
+# ENVIRONMENT VARIABLES & SECRETS
+# ==========================================
 .env
 .env.*
 !.env.example
-venv/
-.venv/
+
+# ==========================================
+# NODE.JS / FRONTEND
+# ==========================================
 node_modules/
 dist/
 build/
+coverage/
+.npm/
+*.tsbuildinfo
+
+# ==========================================
+# DJANGO / DATABASE
+# ==========================================
 *.sqlite3
-*.log
+*.sqlite3-journal
+staticfiles/
+
+# ==========================================
+# MEDIA & USER UPLOADS
+# ==========================================
 media/
+house-muse/ml/uploads/
+
+# ==========================================
+# MACHINE LEARNING MODEL WEIGHTS
+# ==========================================
 *.pt
 *.pth
 *.safetensors
 *.ckpt
 *.bin
+
 house-muse/ml/models/
-house-muse/ml/uploads/
+
+# ==========================================
+# LOGS
+# ==========================================
+*.log
+
+# ==========================================
+# IDE / EDITOR
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# OPERATING SYSTEM
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# HOUSE MUSE LOCAL SECRETS
+# ==========================================
 house-muse/backend/.env
