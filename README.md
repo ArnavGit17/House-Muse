@@ -360,8 +360,7 @@ The repository root contains one project folder, `house-muse/`. Abridged tree of
 ```text
 .
 ├── README.md
-├── docs/
-│   └── images/                     # figures used in this README
+├──Images/   # figures used in this README                 
 └── house-muse/
     ├── backend/                    # Django REST API
     │   ├── manage.py
