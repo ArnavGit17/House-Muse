@@ -80,6 +80,46 @@ Runs at `http://localhost:3000` (set explicitly in `vite.config.ts`).
 
 ---
 
+## Performance measurement
+
+The existing analysis, generation, and refinement routes emit structured
+`latency` log events with durations in seconds. Django propagates a
+request ID to Flask and returns server timings in `X-HouseMuse-*` response
+headers. The Studio also reports browser-observed request times and the
+photo-to-rendered-result time in the browser console. These measurements do
+not alter response bodies or model settings.
+
+With the ML service running, run from the project root in PowerShell:
+
+```powershell
+Set-Location .\ml
+.\.venv\Scripts\python.exe .\benchmark_performance.py --mode all --image "..\frontend\public\test\unfurnished room.jpeg" --style contemporary_indian --room-type living_room
+```
+
+Analysis performs one excluded warm-up followed by 20 measured trials. Image
+generation requires 10 successful results; the script stops at the first
+failed attempt and reports no generation summary unless all 10 succeed. It
+does not print response image data or provider error bodies. Generation
+timings from inside SDXL/ControlNet are available only when the deployed
+Hugging Face Space is running the instrumented code; otherwise the script
+still reports Flask/provider round-trip time and marks those values
+unavailable.
+
+To include the authenticated Django-to-Flask path in the 20 analysis trials,
+add `--django`. The script prompts for a Knox token without echoing it and
+uses `save=false`, so it does not create projects:
+
+```powershell
+.\.venv\Scripts\python.exe .\benchmark_performance.py --mode analysis --django --image "..\frontend\public\test\unfurnished room.jpeg"
+```
+
+The Django-to-Flask round-trip includes upload, Flask processing, and the
+response transfer. The reported difference between this round-trip and
+Flask's own API duration is an estimate of non-Flask overhead, not a pure
+network-only measurement.
+
+---
+
 ## First-time setup checklist
 
 Things that trip people up on a fresh clone:

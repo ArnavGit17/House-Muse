@@ -1389,6 +1389,15 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   background: var(--cream);
 }
+.generated-image-placeholder {
+  padding: 24px;
+  text-align: center;
+}
+.generation-error {
+  max-width: 40ch;
+  margin: 0;
+  line-height: 1.5;
+}
 .panel-badge-clean {
   position: absolute;
   top: 14px;

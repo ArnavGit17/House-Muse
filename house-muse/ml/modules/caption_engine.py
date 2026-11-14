@@ -199,7 +199,7 @@ def generate_caption(image_bytes: bytes, max_retries: int = 3) -> dict:
                     caption = result.get("generated_text", "")
 
                 if caption:
-                    print(f"[BLIP] Caption: '{caption}'")
+                    print("[BLIP] Caption generated.")
                     return {
                         "success": True,
                         "caption": caption,
@@ -207,12 +207,12 @@ def generate_caption(image_bytes: bytes, max_retries: int = 3) -> dict:
                         "method":  "blip_api",
                     }
 
-            print(f"[BLIP] HTTP {response.status_code}: {response.text[:200]}")
+            print(f"[BLIP] HTTP {response.status_code}")
 
         except requests.Timeout:
             print(f"[BLIP] Timeout on attempt {attempt + 1}")
         except Exception as e:
-            print(f"[BLIP] Error: {e}")
+            print(f"[BLIP] Error: {type(e).__name__}")
 
         if attempt < max_retries - 1:
             time.sleep(5)

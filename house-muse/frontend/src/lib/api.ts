@@ -9,6 +9,47 @@ export type Project = { id: number; name: string; room_type: string; length: num
 
 export const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || "http://localhost:8000/api" });
 api.interceptors.request.use(config => { const token = localStorage.getItem("house_muse_token"); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
+const TIMING_HEADERS: Array<[string, string]> = [
+  ["x-housemuse-django-api-seconds", "django.api_response_seconds"],
+  ["x-housemuse-django-flask-round-trip-seconds", "django.flask_round_trip_seconds"],
+  ["x-housemuse-django-flask-overhead-seconds", "django.flask_transport_overhead_seconds"],
+  ["x-housemuse-ml-api-seconds", "ml.api_response_seconds"],
+  ["x-housemuse-room-analysis-seconds", "ml.room_analysis_execution_seconds"],
+  ["x-housemuse-image-processing-seconds", "ml.image_processing_pipeline_seconds"],
+  ["x-housemuse-yolo-inference-seconds", "ml.yolo_inference_seconds"],
+  ["x-housemuse-object-color-extraction-seconds", "ml.object_color_extraction_seconds"],
+  ["x-housemuse-dominant-color-extraction-seconds", "ml.dominant_color_extraction_seconds"],
+  ["x-housemuse-image-generation-seconds", "ml.image_generation_execution_seconds"],
+  ["x-housemuse-image-generation-provider-seconds", "ml.image_generation_provider_round_trip_seconds"],
+  ["x-housemuse-image-refinement-seconds", "ml.image_refinement_execution_seconds"],
+  ["x-housemuse-image-refinement-provider-seconds", "ml.image_refinement_provider_round_trip_seconds"],
+  ["x-housemuse-provider-depth-estimation-seconds", "ml.provider_depth_estimation_seconds"],
+  ["x-housemuse-provider-diffusion-inference-seconds", "ml.provider_diffusion_inference_seconds"],
+  ["x-housemuse-provider-model-execution-seconds", "ml.provider_model_execution_seconds"],
+];
+api.interceptors.response.use(response => {
+  const requestId = response.headers["x-housemuse-request-id"];
+  for (const [header, metric] of TIMING_HEADERS) {
+    const duration = Number(response.headers[header]);
+    if (Number.isFinite(duration) && duration >= 0) {
+      console.info(JSON.stringify({
+        event: "latency",
+        metric,
+        duration_seconds: duration,
+        ...(requestId ? { request_id: requestId } : {}),
+      }));
+    }
+  }
+  return response;
+});
+export const reportClientDuration = (metric: string, startedAt: number, requestId?: string) => {
+  console.info(JSON.stringify({
+    event: "latency",
+    metric,
+    duration_seconds: (performance.now() - startedAt) / 1000,
+    ...(requestId ? { request_id: requestId } : {}),
+  }));
+};
 export const saveSession = (data: AuthResponse) => { localStorage.setItem("house_muse_token", data.token); localStorage.setItem("house_muse_user", JSON.stringify(data.user)); };
 export const login = async (username: string, password: string) => { const { data } = await api.post<AuthResponse>("/auth/login/", { username, password }); saveSession(data); return data; };
 export const register = async (payload: { username: string; email: string; password: string; first_name?: string; last_name?: string }) => { const { data } = await api.post<AuthResponse>("/auth/register/", payload); saveSession(data); return data; };
@@ -16,14 +57,14 @@ export const googleSignIn = async (id_token: string) => { const { data } = await
 export const getMe = async () => (await api.get<User>("/auth/me/")).data;
 export const logout = async () => { await api.post("/auth/logout/"); localStorage.removeItem("house_muse_token"); localStorage.removeItem("house_muse_user"); };
 export const requestPasswordReset = async (email: string) => (await api.post("/auth/password-reset/", { email })).data;
-export const confirmPasswordReset = async (uid: string, token: string, new_password: string) => (await api.post("/auth/password-reset-confirm/", { uid, token, new_password })).data;
+export const confirmPasswordReset = async (uid: string, token: string, new_password: string) => (await api.post("/auth/password-reset/confirm/", { uid, token, new_password })).data;
 export const getProjects = async () => (await api.get<Project[]>("/studio/projects/")).data;
-export const analyse = async (payload: { room_type: RoomType; length: number; width: number; height: number; styles: StyleId[]; budget: number; scope: Scope; num_rooms?: number; harmony?: string; save?: boolean; image?: File }) => { const body = new FormData(); body.append("room_type", payload.room_type); body.append("length", String(payload.length)); body.append("width", String(payload.width)); body.append("height", String(payload.height)); payload.styles.forEach(style => body.append("styles", style)); body.append("budget", String(payload.budget)); body.append("scope", payload.scope); body.append("num_rooms", String(payload.num_rooms || 1)); body.append("harmony", payload.harmony || "analogous"); body.append("save", String(payload.save ?? true)); if (payload.image) body.append("image", payload.image); return (await api.post("/studio/analyse/", body)).data; };
-export const generateImage = async (payload: Record<string, unknown>) => (await api.post("/studio/generate-image/", payload)).data;
+export const analyse = async (payload: { room_type: RoomType; length: number; width: number; height: number; styles: StyleId[]; budget: number; scope: Scope; num_rooms?: number; harmony?: string; save?: boolean; image?: File }, requestId?: string) => { const body = new FormData(); body.append("room_type", payload.room_type); body.append("length", String(payload.length)); body.append("width", String(payload.width)); body.append("height", String(payload.height)); payload.styles.forEach(style => body.append("styles", style)); body.append("budget", String(payload.budget)); body.append("scope", payload.scope); body.append("num_rooms", String(payload.num_rooms || 1)); body.append("harmony", payload.harmony || "analogous"); body.append("save", String(payload.save ?? true)); if (payload.image) body.append("image", payload.image); return (await api.post("/studio/analyse/", body, { headers: requestId ? { "X-Request-ID": requestId } : undefined })).data; };
+export const generateImage = async (payload: Record<string, unknown>, requestId?: string) => (await api.post("/studio/generate-image/", payload, { headers: requestId ? { "X-Request-ID": requestId } : undefined })).data;
 export type RefineHistoryItem = { id: number; instruction: string; resulting_image: string; created_at: string };
 
 export type RefineResponse = { success: boolean; image_url: string; image_b64?: string; resulting_image: string; instruction: string; history: RefineHistoryItem[]; project_id: number };
-export const refineImage = async (payload: { project_id: number; instruction: string }): Promise<RefineResponse> => (await api.post<RefineResponse>("/studio/refine-image/", payload)).data;
+export const refineImage = async (payload: { project_id: number; instruction: string }, requestId?: string): Promise<RefineResponse> => (await api.post<RefineResponse>("/studio/refine-image/", payload, { headers: requestId ? { "X-Request-ID": requestId } : undefined })).data;
 
 
 export function apiError(error: unknown) { const response = (error as { response?: { data?: Record<string, string[]> } })?.response?.data; if (!response) return "We could not reach the House Muse service. Check VITE_API_BASE and your backend CORS settings."; const first = Object.entries(response)[0]; return first ? `${first[0]}: ${Array.isArray(first[1]) ? first[1][0] : first[1]}` : "The request could not be completed."; }

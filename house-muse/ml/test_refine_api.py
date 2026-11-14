@@ -2,12 +2,23 @@ import io
 import unittest
 from unittest.mock import patch
 from app import app
+from modules.hf_space_client import _extract_provider_metrics
 
 
 class TestRefineImageEndpoint(unittest.TestCase):
     def setUp(self):
         app.config["TESTING"] = True
         self.client = app.test_client()
+
+    def test_provider_timings_are_read_from_space_status_metadata(self):
+        metrics = _extract_provider_metrics(
+            "Generation complete <!--HOUSE_MUSE_METRICS:"
+            '{"depth_estimation_seconds":1.25,"diffusion_inference_seconds":2.5,'
+            '"model_execution_seconds":4.0}-->'
+        )
+        self.assertEqual(metrics["depth_estimation_seconds"], 1.25)
+        self.assertEqual(metrics["diffusion_inference_seconds"], 2.5)
+        self.assertEqual(metrics["model_execution_seconds"], 4.0)
 
     def test_missing_image_returns_400(self):
         resp = self.client.post(
@@ -18,6 +29,8 @@ class TestRefineImageEndpoint(unittest.TestCase):
         data = resp.get_json()
         self.assertFalse(data["success"])
         self.assertIn("No init image", data["error"])
+        self.assertGreater(float(resp.headers["X-HouseMuse-ML-API-Seconds"]), 0)
+        self.assertTrue(resp.headers.get("X-HouseMuse-Request-ID"))
 
     def test_missing_instruction_returns_400(self):
         resp = self.client.post(
@@ -56,6 +69,11 @@ class TestRefineImageEndpoint(unittest.TestCase):
         self.assertEqual(data["image_url"], "https://pollinations.ai/fake-url.jpg")
         self.assertEqual(len(data["variants"]), 1)
         self.assertEqual(data["variants"][0]["variant_label"], "Refined View")
+        self.assertGreater(float(resp.headers["X-HouseMuse-Image-Refinement-Seconds"]), 0)
+        self.assertGreater(
+            float(resp.headers["X-HouseMuse-Image-Refinement-Provider-Seconds"]),
+            0,
+        )
 
         # Verify mock called with lower strength
         mock_refine.assert_called_once()

@@ -9,7 +9,9 @@ CRITICAL ZeroGPU RULE:
 import spaces  # <-- Must be imported before torch!
 import os
 import io
+import json
 import time
+from time import perf_counter
 from pathlib import Path
 from typing import Optional, Dict, Tuple
 from PIL import Image
@@ -317,11 +319,13 @@ def generate_redesign(
     if image is None:
         return None, "⚠️ Please upload a room photo first."
 
-    t0 = time.time()
+    t0 = perf_counter()
 
     # 1. Preprocess input & extract room geometry
     processed_image = prepare_image(image.convert("RGB"))
+    depth_started_at = perf_counter()
     depth_map = compute_depth(processed_image)
+    depth_seconds = perf_counter() - depth_started_at
 
     # 2. Select LoRA adapter
     normalized_style = style.lower().strip()
@@ -350,6 +354,8 @@ def generate_redesign(
     generator = torch.Generator(device="cuda").manual_seed(effective_seed)
 
     # 5. Run Diffusion
+    torch.cuda.synchronize()
+    diffusion_started_at = perf_counter()
     result_image = pipe(
         prompt=final_prompt,
         negative_prompt=final_negative,
@@ -359,14 +365,22 @@ def generate_redesign(
         guidance_scale=guidance_scale,
         generator=generator,
     ).images[0]
+    torch.cuda.synchronize()
+    diffusion_seconds = perf_counter() - diffusion_started_at
 
-    duration = round(time.time() - t0, 2)
+    duration = perf_counter() - t0
+    metrics = {
+        "depth_estimation_seconds": depth_seconds,
+        "diffusion_inference_seconds": diffusion_seconds,
+        "model_execution_seconds": duration,
+    }
     status_msg = (
-        f"✅ **Generation Complete** ({duration}s)\n\n"
+        f"✅ **Generation Complete** ({duration:.2f}s)\n\n"
         f"- **Style**: `{style}`\n"
         f"- **Adapter**: `{applied_note}`\n"
         f"- **Seed**: `{effective_seed}`\n"
-        f"- **Prompt**: *{final_prompt}*"
+        f"- **Prompt**: *{final_prompt}*\n"
+        f"<!--HOUSE_MUSE_METRICS:{json.dumps(metrics, separators=(',', ':'))}-->"
     )
 
     return result_image, status_msg
@@ -396,17 +410,19 @@ def generate_refine(
     if image is None:
         return None, "⚠️ Please provide the previous generated image to refine."
 
-    t0 = time.time()
+    t0 = perf_counter()
 
     # 1. Preprocess init image (most recent generated image)
     init_image = prepare_image(image.convert("RGB"))
 
     # 2. Extract geometry/depth map: prefer original room photo if provided to lock structure
+    depth_started_at = perf_counter()
     if original_image is not None:
         geometry_ref = prepare_image(original_image.convert("RGB"))
         depth_map = compute_depth(geometry_ref)
     else:
         depth_map = compute_depth(init_image)
+    depth_seconds = perf_counter() - depth_started_at
 
     # 3. Select LoRA adapter
     normalized_style = style.lower().strip()
@@ -448,6 +464,8 @@ def generate_refine(
     effective_strength = float(strength) if strength is not None else 0.35
     effective_strength = max(0.1, min(0.6, effective_strength))
 
+    torch.cuda.synchronize()
+    diffusion_started_at = perf_counter()
     if pipe_refine is not None:
         result_image = pipe_refine(
             prompt=final_prompt,
@@ -470,16 +488,24 @@ def generate_refine(
             guidance_scale=float(guidance_scale),
             generator=generator,
         ).images[0]
+    torch.cuda.synchronize()
+    diffusion_seconds = perf_counter() - diffusion_started_at
 
-    duration = round(time.time() - t0, 2)
+    duration = perf_counter() - t0
+    metrics = {
+        "depth_estimation_seconds": depth_seconds,
+        "diffusion_inference_seconds": diffusion_seconds,
+        "model_execution_seconds": duration,
+    }
     status_msg = (
-        f"✅ **Refinement Complete** ({duration}s)\n\n"
+        f"✅ **Refinement Complete** ({duration:.2f}s)\n\n"
         f"- **Instruction**: *{instruction}*\n"
         f"- **Strength**: `{effective_strength}`\n"
         f"- **Style**: `{style}`\n"
         f"- **Adapter**: `{applied_note}`\n"
         f"- **Seed**: `{effective_seed}`\n"
-        f"- **Prompt**: *{final_prompt}*"
+        f"- **Prompt**: *{final_prompt}*\n"
+        f"<!--HOUSE_MUSE_METRICS:{json.dumps(metrics, separators=(',', ':'))}-->"
     )
 
     return result_image, status_msg

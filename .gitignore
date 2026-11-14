@@ -9,6 +9,7 @@ node_modules/
 dist/
 build/
 *.sqlite3
+*.log
 media/
 *.pt
 *.pth
@@ -16,3 +17,5 @@ media/
 *.ckpt
 *.bin
 house-muse/ml/models/
+house-muse/ml/uploads/
+house-muse/backend/.env

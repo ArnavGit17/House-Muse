@@ -16,6 +16,7 @@ from datetime import timedelta
 from pathlib import Path
  
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
  
 load_dotenv()
  
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
 ]
  
 MIDDLEWARE = [
+    "config.performance.PerformanceMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -126,6 +128,26 @@ CORS_ALLOWED_ORIGINS = os.getenv(
     "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, "x-request-id")
+CORS_EXPOSE_HEADERS = [
+    "X-HouseMuse-Request-ID",
+    "X-HouseMuse-Django-API-Seconds",
+    "X-HouseMuse-Django-Flask-Round-Trip-Seconds",
+    "X-HouseMuse-Django-Flask-Overhead-Seconds",
+    "X-HouseMuse-ML-API-Seconds",
+    "X-HouseMuse-Room-Analysis-Seconds",
+    "X-HouseMuse-Image-Processing-Seconds",
+    "X-HouseMuse-YOLO-Inference-Seconds",
+    "X-HouseMuse-Object-Color-Extraction-Seconds",
+    "X-HouseMuse-Dominant-Color-Extraction-Seconds",
+    "X-HouseMuse-Image-Generation-Seconds",
+    "X-HouseMuse-Image-Generation-Provider-Seconds",
+    "X-HouseMuse-Image-Refinement-Seconds",
+    "X-HouseMuse-Image-Refinement-Provider-Seconds",
+    "X-HouseMuse-Provider-Depth-Estimation-Seconds",
+    "X-HouseMuse-Provider-Diffusion-Inference-Seconds",
+    "X-HouseMuse-Provider-Model-Execution-Seconds",
+]
  
 # ── Google Sign-In ───────────────────────────────────────────────────────
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")

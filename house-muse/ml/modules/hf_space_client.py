@@ -15,16 +15,57 @@ Usage in Flask / image_generator.py:
 
 import os
 import io
+import json
+import logging
 import base64
+import math
+import re
 import tempfile
 from typing import Optional, Dict, Any, Union, Tuple
 from PIL import Image
+from modules.performance import record_duration
 
 try:
     from gradio_client import Client, handle_file
 except ImportError:
     Client = None
     handle_file = None
+
+
+_PROVIDER_METRICS_PATTERN = re.compile(r"<!--HOUSE_MUSE_METRICS:(\{[^\r\n]*\})-->")
+_PROVIDER_METRIC_NAMES = {
+    "depth_estimation_seconds": "ml.provider_depth_estimation_seconds",
+    "diffusion_inference_seconds": "ml.provider_diffusion_inference_seconds",
+    "model_execution_seconds": "ml.provider_model_execution_seconds",
+}
+
+
+def _extract_provider_metrics(status_text) -> dict:
+    if not isinstance(status_text, str):
+        return {}
+    match = _PROVIDER_METRICS_PATTERN.search(status_text)
+    if not match:
+        return {}
+    try:
+        raw_metrics = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        logging.getLogger("house_muse.performance").warning(
+            "Ignoring malformed provider timing metadata"
+        )
+        return {}
+
+    metrics = {}
+    for key, metric_name in _PROVIDER_METRIC_NAMES.items():
+        value = raw_metrics.get(key) if isinstance(raw_metrics, dict) else None
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
+            metrics[key] = float(value)
+            record_duration(metric_name, value)
+        elif value is not None:
+            logging.getLogger("house_muse.performance").warning(
+                "Ignoring invalid provider timing value for %s",
+                key,
+            )
+    return metrics
 
 
 # The Space's style dropdown only accepts these exact values (note the Space's own spellings).
@@ -118,18 +159,23 @@ def call_hf_space_redesign(
         )
 
         output_image_path, status_text = result
+        provider_metrics = _extract_provider_metrics(status_text)
 
         # 5. Read resulting image and convert to base64 for Flask / frontend
         with open(output_image_path, "rb") as f:
             out_bytes = f.read()
         out_b64 = base64.b64encode(out_bytes).decode("utf-8")
+        with Image.open(io.BytesIO(out_bytes)) as output_image:
+            image_mime_type = Image.MIME.get(output_image.format, "image/jpeg")
 
         return {
             "success": True,
             "image_path": output_image_path,
             "image_b64": out_b64,
+            "image_mime_type": image_mime_type,
             "style": style,
             "status": status_text,
+            "provider_metrics": provider_metrics,
             "error": None,
         }
 
@@ -225,59 +271,48 @@ def call_hf_space_refine(
             except TypeError:
                 client = Client(space_id, hf_token=token)
 
-        # Attempt /refine endpoint
-        try:
-            result = client.predict(
-                image=handle_file(target_path),
-                style=style,
-                instruction=instruction,
-                original_image=handle_file(target_orig_path) if target_orig_path else None,
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                strength=float(strength),
-                controlnet_scale=float(controlnet_scale),
-                lora_scale=float(lora_scale),
-                num_inference_steps=int(num_inference_steps),
-                guidance_scale=float(guidance_scale),
-                seed=int(seed),
-                api_name="/refine",
-            )
-        except Exception as api_err:
-            print(f"[HF Space Client] /refine endpoint not found or failed ({api_err}), falling back to /redesign with refined prompt...")
-            combined_prompt = prompt if prompt else f"{instruction}"
-            if instruction and instruction.lower() not in combined_prompt.lower():
-                combined_prompt = f"{combined_prompt}, {instruction}"
-
-            result = client.predict(
-                image=handle_file(target_path),
-                style=style,
-                prompt=combined_prompt,
-                negative_prompt=negative_prompt,
-                controlnet_scale=float(controlnet_scale),
-                lora_scale=float(lora_scale),
-                num_inference_steps=int(num_inference_steps),
-                guidance_scale=float(guidance_scale),
-                seed=int(seed),
-                api_name="/redesign",
-            )
+        result = client.predict(
+            image=handle_file(target_path),
+            style=style,
+            instruction=instruction,
+            original_image=handle_file(target_orig_path) if target_orig_path else None,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            strength=float(strength),
+            controlnet_scale=float(controlnet_scale),
+            lora_scale=float(lora_scale),
+            num_inference_steps=int(num_inference_steps),
+            guidance_scale=float(guidance_scale),
+            seed=int(seed),
+            api_name="/refine",
+        )
 
         output_image_path, status_text = result
+        provider_metrics = _extract_provider_metrics(status_text)
 
         with open(output_image_path, "rb") as f:
             out_bytes = f.read()
         out_b64 = base64.b64encode(out_bytes).decode("utf-8")
+        with Image.open(io.BytesIO(out_bytes)) as output_image:
+            image_mime_type = Image.MIME.get(output_image.format, "image/jpeg")
 
         return {
             "success": True,
             "image_path": output_image_path,
             "image_b64": out_b64,
+            "image_mime_type": image_mime_type,
             "style": style,
             "instruction": instruction,
             "status": status_text,
+            "provider_metrics": provider_metrics,
             "error": None,
         }
 
     except Exception as e:
+        token = hf_token or os.environ.get("HF_API_TOKEN") or os.environ.get("HF_TOKEN")
+        error = str(e)
+        if token:
+            error = error.replace(token, "[redacted]")
         return {
             "success": False,
             "image_path": None,
@@ -285,7 +320,7 @@ def call_hf_space_refine(
             "style": style,
             "instruction": instruction,
             "status": None,
-            "error": str(e),
+            "error": error,
         }
     finally:
         for p in temp_files:

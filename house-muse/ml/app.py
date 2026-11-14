@@ -3,8 +3,9 @@ app.py — House Muse Backend API
 Full stack: YOLOv8 + SAM + CLIP + Places365
 """
 
-import os, json, traceback
-from flask import Flask, request, jsonify
+import os, json, traceback, uuid
+from time import perf_counter
+from flask import Flask, g, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -21,6 +22,7 @@ from modules.image_generator        import (
     get_base_style_prompt,
 )
 from modules.caption_engine         import get_generation_prompt
+from modules.performance            import record_duration
 import numpy as np
 
 app = Flask(__name__)
@@ -30,6 +32,50 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 os.makedirs("uploads", exist_ok=True)
 
+_METRIC_HEADERS = {
+    "ml.api_response_seconds": "X-HouseMuse-ML-API-Seconds",
+    "ml.room_analysis_execution_seconds": "X-HouseMuse-Room-Analysis-Seconds",
+    "ml.space_analysis_seconds": "X-HouseMuse-Space-Analysis-Seconds",
+    "ml.image_processing_pipeline_seconds": "X-HouseMuse-Image-Processing-Seconds",
+    "ml.yolo_model_load_seconds": "X-HouseMuse-YOLO-Model-Load-Seconds",
+    "ml.yolo_inference_seconds": "X-HouseMuse-YOLO-Inference-Seconds",
+    "ml.object_color_extraction_seconds": "X-HouseMuse-Object-Color-Extraction-Seconds",
+    "ml.dominant_color_extraction_seconds": "X-HouseMuse-Dominant-Color-Extraction-Seconds",
+    "ml.generation_prompt_seconds": "X-HouseMuse-Generation-Prompt-Seconds",
+    "ml.image_generation_execution_seconds": "X-HouseMuse-Image-Generation-Seconds",
+    "ml.image_generation_provider_round_trip_seconds": "X-HouseMuse-Image-Generation-Provider-Seconds",
+    "ml.refinement_prompt_seconds": "X-HouseMuse-Refinement-Prompt-Seconds",
+    "ml.image_refinement_execution_seconds": "X-HouseMuse-Image-Refinement-Seconds",
+    "ml.image_refinement_provider_round_trip_seconds": "X-HouseMuse-Image-Refinement-Provider-Seconds",
+    "ml.provider_depth_estimation_seconds": "X-HouseMuse-Provider-Depth-Estimation-Seconds",
+    "ml.provider_diffusion_inference_seconds": "X-HouseMuse-Provider-Diffusion-Inference-Seconds",
+    "ml.provider_model_execution_seconds": "X-HouseMuse-Provider-Model-Execution-Seconds",
+}
+
+
+@app.before_request
+def _start_latency_measurement():
+    candidate = request.headers.get("X-Request-ID", "")
+    try:
+        request_id = str(uuid.UUID(candidate))
+    except (ValueError, AttributeError, TypeError):
+        request_id = str(uuid.uuid4())
+    g.house_muse_request_id = request_id
+    g.house_muse_metrics = {}
+    g.house_muse_request_started = perf_counter()
+
+
+@app.after_request
+def _finish_latency_measurement(response):
+    duration = perf_counter() - g.house_muse_request_started
+    record_duration("ml.api_response_seconds", duration, status_code=response.status_code)
+    response.headers["X-HouseMuse-Request-ID"] = g.house_muse_request_id
+    for metric_name, header_name in _METRIC_HEADERS.items():
+        value = g.house_muse_metrics.get(metric_name)
+        if value is not None:
+            response.headers[header_name] = f"{value:.9f}"
+    return response
+
 
 @app.route("/api/health")
 def health():
@@ -38,6 +84,7 @@ def health():
 
 @app.route("/api/analyse", methods=["POST"])
 def analyse():
+    started_at = perf_counter()
     try:
         room_type  = request.form.get("room_type",  "living_room")
         length     = float(request.form.get("length", 12))
@@ -51,7 +98,9 @@ def analyse():
         harmony    = request.form.get("harmony",  "analogous")
 
         # ── 1. Space analysis ──────────────────────────────────────────────
+        space_started_at = perf_counter()
         space = analyse_space(length, width, height, room_type)
+        record_duration("ml.space_analysis_seconds", perf_counter() - space_started_at)
 
         # ── 2. Full image pipeline ─────────────────────────────────────────
         image_file = request.files.get("image")
@@ -161,6 +210,11 @@ def analyse():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        record_duration(
+            "ml.room_analysis_execution_seconds",
+            perf_counter() - started_at,
+        )
 
 
 @app.route("/api/palette", methods=["POST"])
@@ -192,14 +246,14 @@ def palette_only():
 @app.route("/api/generate-image", methods=["POST"])
 def generate_image():
     """
-    Full pipeline:
+    Photo-based redesign:
       1. BLIP encoder-decoder → caption from room image
-      2. Prompt builder → rich SD prompt from caption + style + palette
-      3. Pollinations.AI (flux model, free/keyless) → styled room image
-         Falls back to Stability AI (SDXL) if Pollinations fails and
-         STABILITY_API_KEY is set. Text-to-image only — the uploaded
-         room photo is used for the BLIP caption in step 1, not as a
-         structural/image-to-image input, so layout isn't preserved.
+      2. Prompt builder → style prompt from caption + style + palette
+      3. Hugging Face img2img refinement with the uploaded photo as both
+         the initial image and geometry reference.
+
+    Text-to-image providers are used only when no photo is supplied. They
+    cannot preserve a specific room's architecture.
 
     Accepts multipart/form-data (with optional image) OR JSON.
 
@@ -215,6 +269,7 @@ def generate_image():
         detections     : JSON array of detected objects
         n_variants     : int (1–3)
     """
+    started_at = perf_counter()
     try:
         # Parse — supports both JSON and multipart
         is_json = request.content_type and "application/json" in request.content_type
@@ -267,31 +322,42 @@ def generate_image():
             n_variants       = int(request.form.get("n_variants",  1))
 
         # ── Step 1+2: BLIP caption → prompt ────────────────────────────────
-        prompt_data = get_generation_prompt(
-            image_bytes      = image_bytes,
-            room_type        = room_type,
-            styles           = styles,
-            wall_color       = wall_color,
-            accent_color     = accent_color,
-            size_category    = size_category,
-            lighting         = lighting,
-            detected_objects = detections,
-            dominant_colors  = dominant_colors,
-        )
+        prompt_started_at = perf_counter()
+        try:
+            prompt_data = get_generation_prompt(
+                image_bytes      = image_bytes,
+                room_type        = room_type,
+                styles           = styles,
+                wall_color       = wall_color,
+                accent_color     = accent_color,
+                size_category    = size_category,
+                lighting         = lighting,
+                detected_objects = detections,
+                dominant_colors  = dominant_colors,
+            )
+        finally:
+            record_duration(
+                "ml.generation_prompt_seconds",
+                perf_counter() - prompt_started_at,
+            )
 
         positive = prompt_data["positive_prompt"]
         negative = prompt_data["negative_prompt"]
         caption  = prompt_data["caption"]
         method   = prompt_data["method"]
 
-        print(f"[Generate] Method: {method}")
-        if caption:
-            print(f"[Generate] BLIP caption: {caption}")
-
         # ── Step 3: Pollinations.AI (Stability AI fallback) ─────────────────
         chosen_style = styles[0] if styles else "contemporary_indian"
         if n_variants == 1:
-            result   = generate_room_image(positive, negative, image_input=image_bytes, style=chosen_style, room_type=room_type)
+            provider_started_at = perf_counter()
+            try:
+                result = generate_room_image(positive, negative, image_input=image_bytes, style=chosen_style, room_type=room_type)
+            finally:
+                record_duration(
+                    "ml.image_generation_provider_round_trip_seconds",
+                    perf_counter() - provider_started_at,
+                    aggregate=True,
+                )
             variants = [{
                 **result,
                 "variant":       1,
@@ -309,7 +375,15 @@ def generate_image():
             variants = []
             for i in range(min(n_variants, 3)):
                 extra_pos = f"{positive}, {notes[i]}"
-                r = generate_room_image(extra_pos, negative, image_input=image_bytes, style=chosen_style, room_type=room_type)
+                provider_started_at = perf_counter()
+                try:
+                    r = generate_room_image(extra_pos, negative, image_input=image_bytes, style=chosen_style, room_type=room_type)
+                finally:
+                    record_duration(
+                        "ml.image_generation_provider_round_trip_seconds",
+                        perf_counter() - provider_started_at,
+                        aggregate=True,
+                    )
                 variants.append({
                     **r,
                     "variant":       i + 1,
@@ -329,6 +403,7 @@ def generate_image():
                     "variant_label": v.get("variant_label", "Room View"),
                     "image_url":     v.get("image_url"),
                     "image_b64":     v.get("image_b64"),
+                    "image_mime_type": v.get("image_mime_type"),
                     "prompt":        v.get("prompt"),
                     "caption":       v.get("caption"),
                     "prompt_method": v.get("prompt_method", "fallback"),
@@ -342,6 +417,11 @@ def generate_image():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e), "variants": []}), 500
+    finally:
+        record_duration(
+            "ml.image_generation_execution_seconds",
+            perf_counter() - started_at,
+        )
 
 
 @app.route("/api/refine-image", methods=["POST"])
@@ -354,6 +434,7 @@ def refine_image():
       4. Invokes HF Space refine (or Stability AI img2img / Pollinations fallback) with strength ~0.3-0.4
       5. Returns refined image data and prompt details
     """
+    started_at = perf_counter()
     try:
         is_json = request.content_type and "application/json" in request.content_type
 
@@ -395,6 +476,7 @@ def refine_image():
         chosen_style = styles[0] if styles else "contemporary_indian"
 
         # Build prompt: base style prompt + instruction appended
+        prompt_started_at = perf_counter()
         if custom_prompt:
             base_prompt = custom_prompt
         else:
@@ -405,20 +487,27 @@ def refine_image():
         else:
             full_prompt = base_prompt
 
-        print(f"[Refine] Style: {chosen_style}, Strength: {strength}")
-        print(f"[Refine] Instruction: {instruction}")
-        print(f"[Refine] Prompt: {full_prompt}")
-
-        result = refine_room_image(
-            positive_prompt=full_prompt,
-            negative_prompt="",
-            init_image=image_input,
-            original_image=original_image_input,
-            instruction=instruction,
-            style=chosen_style,
-            strength=strength,
-            room_type=room_type,
+        record_duration(
+            "ml.refinement_prompt_seconds",
+            perf_counter() - prompt_started_at,
         )
+        provider_started_at = perf_counter()
+        try:
+            result = refine_room_image(
+                positive_prompt=full_prompt,
+                negative_prompt="",
+                init_image=image_input,
+                original_image=original_image_input,
+                instruction=instruction,
+                style=chosen_style,
+                strength=strength,
+                room_type=room_type,
+            )
+        finally:
+            record_duration(
+                "ml.image_refinement_provider_round_trip_seconds",
+                perf_counter() - provider_started_at,
+            )
 
         success = result.get("success", False)
         img_url = result.get("image_url")
@@ -448,6 +537,11 @@ def refine_image():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e), "variants": []}), 500
+    finally:
+        record_duration(
+            "ml.image_refinement_execution_seconds",
+            perf_counter() - started_at,
+        )
 
 
 

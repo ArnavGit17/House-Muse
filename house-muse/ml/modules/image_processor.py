@@ -23,7 +23,9 @@ from pathlib import Path
 import torch
 import torchvision.transforms as T
 import colorsys
+from time import perf_counter
 from sklearn.cluster import KMeans
+from modules.performance import record_duration, timed
 
 # ── YOLOv8 ───────────────────────────────────────────────────────────────────
 from ultralytics import YOLO
@@ -167,13 +169,17 @@ _effnet_tf      = None
 def _load_yolo() -> YOLO:
     global _yolo_model
     if _yolo_model is None:
+        started_at = perf_counter()
         weights = YOLO_WEIGHTS
         if not Path(weights).exists():
             print(f"[HouseMuse] Custom weights not found at {weights}")
             print("[HouseMuse] Falling back to COCO pretrained YOLOv8m")
             weights = "yolov8m.pt"   # downloads automatically
         print(f"[HouseMuse] Loading YOLO: {weights}")
-        _yolo_model = YOLO(weights)
+        try:
+            _yolo_model = YOLO(weights)
+        finally:
+            record_duration("ml.yolo_model_load_seconds", perf_counter() - started_at)
         print("[HouseMuse] YOLOv8 ready ✓")
     return _yolo_model
 
@@ -299,13 +305,21 @@ def detect_objects(rgb: np.ndarray) -> list[dict]:
     model  = _load_yolo()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    results = model.predict(
-        source    = rgb,
-        conf      = DETECTION_THRESH,
-        device    = device,
-        verbose   = False,
-        imgsz     = 640,
-    )
+    if device == "cuda":
+        torch.cuda.synchronize()
+    started_at = perf_counter()
+    try:
+        results = model.predict(
+            source    = rgb,
+            conf      = DETECTION_THRESH,
+            device    = device,
+            verbose   = False,
+            imgsz     = 640,
+        )
+        if device == "cuda":
+            torch.cuda.synchronize()
+    finally:
+        record_duration("ml.yolo_inference_seconds", perf_counter() - started_at)
 
     detections = []
     if not results:
@@ -368,6 +382,7 @@ def _kmeans_on_pixels(pixels: np.ndarray, n: int) -> list[dict]:
     return colors
 
 
+@timed("ml.object_color_extraction_seconds")
 def extract_object_colors(rgb: np.ndarray, detections: list[dict]) -> list[dict]:
     """
     For each colour-relevant detection:
@@ -634,6 +649,7 @@ def infer_room_type(
 #  7. GLOBAL DOMINANT COLOUR EXTRACTION
 # ══════════════════════════════════════════════════════════════════════════════
 
+@timed("ml.dominant_color_extraction_seconds")
 def extract_dominant_colors(rgb: np.ndarray, n: int = N_GLOBAL_COLORS) -> list[dict]:
     pixels = rgb.reshape(-1, 3).astype(np.float32)
     if len(pixels) > 50_000:
@@ -755,6 +771,7 @@ def build_object_aware_palette(
 #  MASTER PIPELINE  (called from app.py — unchanged signature)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@timed("ml.image_processing_pipeline_seconds")
 def process_image(
     image_bytes: bytes,
     provided_room_type: str | None = None,

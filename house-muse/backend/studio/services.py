@@ -9,18 +9,79 @@ import json
 import os
 import io
 import base64
+from time import perf_counter
 import requests
 from django.conf import settings
+from config.performance import get_request_id, record_duration, record_reported_metric
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-ML_TIMEOUT_SECONDS = 60
+ML_ANALYSIS_TIMEOUT_SECONDS = 300
+ML_GENERATION_TIMEOUT_SECONDS = 360
+ML_REFINEMENT_TIMEOUT_SECONDS = 360
 
 
 class MLServiceError(Exception):
     pass
+
+
+_FLASK_TIMING_HEADERS = {
+    "X-HouseMuse-ML-API-Seconds": "ml.api_response_seconds",
+    "X-HouseMuse-Room-Analysis-Seconds": "ml.room_analysis_execution_seconds",
+    "X-HouseMuse-Image-Processing-Seconds": "ml.image_processing_pipeline_seconds",
+    "X-HouseMuse-YOLO-Inference-Seconds": "ml.yolo_inference_seconds",
+    "X-HouseMuse-Object-Color-Extraction-Seconds": "ml.object_color_extraction_seconds",
+    "X-HouseMuse-Dominant-Color-Extraction-Seconds": "ml.dominant_color_extraction_seconds",
+    "X-HouseMuse-Image-Generation-Seconds": "ml.image_generation_execution_seconds",
+    "X-HouseMuse-Image-Generation-Provider-Seconds": "ml.image_generation_provider_round_trip_seconds",
+    "X-HouseMuse-Image-Refinement-Seconds": "ml.image_refinement_execution_seconds",
+    "X-HouseMuse-Image-Refinement-Provider-Seconds": "ml.image_refinement_provider_round_trip_seconds",
+    "X-HouseMuse-Provider-Depth-Estimation-Seconds": "ml.provider_depth_estimation_seconds",
+    "X-HouseMuse-Provider-Diffusion-Inference-Seconds": "ml.provider_diffusion_inference_seconds",
+    "X-HouseMuse-Provider-Model-Execution-Seconds": "ml.provider_model_execution_seconds",
+}
+
+
+def _post_to_ml(operation: str, url: str, **kwargs):
+    headers = dict(kwargs.pop("headers", {}))
+    request_id = get_request_id()
+    if request_id:
+        headers["X-Request-ID"] = request_id
+
+    started_at = perf_counter()
+    response = None
+    try:
+        response = requests.post(url, headers=headers or None, **kwargs)
+        return response
+    finally:
+        round_trip_seconds = perf_counter() - started_at
+        record_duration(
+            "django.flask_round_trip_seconds",
+            round_trip_seconds,
+            operation=operation,
+        )
+        if response is not None:
+            for header_name, metric_name in _FLASK_TIMING_HEADERS.items():
+                value = response.headers.get(header_name)
+                if value is not None:
+                    try:
+                        record_reported_metric(metric_name, float(value))
+                    except ValueError:
+                        logger.warning("Ignoring invalid upstream timing header %s", header_name)
+                        continue
+
+            ml_api_seconds = response.headers.get("X-HouseMuse-ML-API-Seconds")
+            if ml_api_seconds is not None:
+                try:
+                    record_duration(
+                        "django.flask_transport_overhead_seconds",
+                        round_trip_seconds - float(ml_api_seconds),
+                        operation=operation,
+                    )
+                except ValueError:
+                    logger.warning("Ignoring invalid upstream ML API timing header")
 
 
 def calculate_catalog_budget_breakdown(
@@ -244,11 +305,12 @@ def analyse_room(*, room_type, length, width, height, styles, budget, scope, num
     files = {"image": image_file} if image_file else None
 
     try:
-        resp = requests.post(
+        resp = _post_to_ml(
+            "analyse",
             f"{settings.ML_SERVICE_URL}/api/analyse",
             data=data,
             files=files,
-            timeout=ML_TIMEOUT_SECONDS,
+            timeout=ML_ANALYSIS_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
         result = resp.json()
@@ -317,17 +379,19 @@ def generate_room_image(payload: dict, image_file=None):
                 file_name = getattr(image_file, "name", "room.jpg")
 
             files = {"image": (file_name, file_obj)}
-            resp = requests.post(
+            resp = _post_to_ml(
+                "generate_image",
                 f"{settings.ML_SERVICE_URL}/api/generate-image",
                 data=data,
                 files=files,
-                timeout=ML_TIMEOUT_SECONDS,
+                timeout=ML_GENERATION_TIMEOUT_SECONDS,
             )
         else:
-            resp = requests.post(
+            resp = _post_to_ml(
+                "generate_image",
                 f"{settings.ML_SERVICE_URL}/api/generate-image",
                 json=payload,
-                timeout=ML_TIMEOUT_SECONDS,
+                timeout=ML_GENERATION_TIMEOUT_SECONDS,
             )
         resp.raise_for_status()
         return resp.json()
@@ -427,17 +491,19 @@ def refine_room_image(payload: dict, init_image=None, original_image=None):
             files["original_image"] = (orig_tuple[0], orig_tuple[1].getvalue(), orig_tuple[2])
 
         if files:
-            resp = requests.post(
+            resp = _post_to_ml(
+                "refine_image",
                 f"{settings.ML_SERVICE_URL}/api/refine-image",
                 data=data,
                 files=files,
-                timeout=ML_TIMEOUT_SECONDS,
+                timeout=ML_REFINEMENT_TIMEOUT_SECONDS,
             )
         else:
-            resp = requests.post(
+            resp = _post_to_ml(
+                "refine_image",
                 f"{settings.ML_SERVICE_URL}/api/refine-image",
                 json=payload,
-                timeout=ML_TIMEOUT_SECONDS,
+                timeout=ML_REFINEMENT_TIMEOUT_SECONDS,
             )
         resp.raise_for_status()
         return resp.json()

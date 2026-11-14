@@ -56,6 +56,8 @@ class AnalyseView(APIView):
 
         project = None
         if payload.get("save", True):
+            if image_file and hasattr(image_file, "seek"):
+                image_file.seek(0)
             project = Project.objects.create(
                 owner=request.user,
                 name=payload.get("name", ""),
@@ -79,7 +81,7 @@ class AnalyseView(APIView):
 
 
 class GenerateImageView(APIView):
-    """POST → forwards to ml/'s /api/generate-image (Pollinations.AI, Stability AI fallback)."""
+    """POST → forwards to ml/'s image-to-image generation pipeline."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -99,10 +101,38 @@ class GenerateImageView(APIView):
         except MLServiceError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
+        if not result.get("success"):
+            detail = result.get("error")
+            variants = result.get("variants")
+            if not detail and isinstance(variants, list):
+                detail = next(
+                    (
+                        variant.get("error")
+                        for variant in variants
+                        if isinstance(variant, dict) and variant.get("error")
+                    ),
+                    None,
+                )
+            return Response(
+                {"detail": detail or "Image generation did not return an image."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
         if project and result.get("success"):
             variants = result.get("variants", [])
-            if variants:
-                project.generated_image_url = variants[0].get("image_url")
+            first_variant = variants[0] if variants else {}
+            image_url = result.get("image_url") or first_variant.get("image_url")
+            image_b64 = result.get("image_b64") or first_variant.get("image_b64")
+            image_mime_type = (
+                result.get("image_mime_type")
+                or first_variant.get("image_mime_type")
+                or "image/jpeg"
+            )
+            if image_url:
+                project.generated_image_url = image_url
+            elif image_b64:
+                project.generated_image_url = f"data:{image_mime_type};base64,{image_b64}"
+            if project.generated_image_url:
                 project.save(update_fields=["generated_image_url"])
 
         return Response(result)

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { analyse, generateImage, refineImage, apiError, type RefineHistoryItem } from "../lib/api";
+import { analyse, generateImage, refineImage, apiError, reportClientDuration, type RefineHistoryItem } from "../lib/api";
 import { Link } from "wouter";
 import {
   ArrowLeft,
@@ -422,10 +422,16 @@ export default function Studio() {
   const [budget, setBudget] = useState("180000");
   const [dimensions, setDimensions] = useState({ length: "18", width: "14", height: "10" });
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<"analysis" | "generation">("analysis");
+  const [generationLoading, setGenerationLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [resultData, setResultData] = useState<Record<string, any> | null>(null);
   const [afterImage, setAfterImage] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [authRequired, setAuthRequired] = useState(false);
+  const [imageProcessingConsent, setImageProcessingConsent] = useState(false);
+  const [consentError, setConsentError] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [activeItems, setActiveItems] = useState<Record<string, Array<{ name: string; price: number; thumbnail?: string; category: string }>> | null>(null);
   const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
@@ -436,6 +442,8 @@ export default function Studio() {
   const [refineInput, setRefineInput] = useState("");
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState("");
+  const workflowStartedAt = useRef<number | null>(null);
+  const workflowRequestId = useRef<string | null>(null);
 
   const toggleCategory = (key: string) => {
     setExpandedCategories((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -443,31 +451,19 @@ export default function Studio() {
 
   const chosenStyle = useMemo(() => styles.find((s) => s[0] === style)?.[1], [style]);
 
-  const defaultRoomImage = useMemo(() => {
-    switch (room) {
-      case "bedroom":
-        return "/images/bedroom.jpg";
-      case "dining_room":
-        return "/images/diningroom.jpg";
-      case "bathroom":
-        return "/images/bathroom.jpg";
-      case "kitchen":
-        return "/images/kitchen.jpg";
-      default:
-        return "/images/livingroom.jpg";
-    }
-  }, [room]);
-
-  const resolvedDirectionImage = afterImage || defaultRoomImage;
-
   const chooseFile = (next: File | undefined) => {
     if (!next || !next.type.startsWith("image/")) return;
     setFile(next);
     setPreview(URL.createObjectURL(next));
+    setImageProcessingConsent(false);
+    setConsentError("");
   };
 
   const selectSamplePhoto = async (url: string, name: string) => {
     setPreview(url);
+    setFile(null);
+    setImageProcessingConsent(false);
+    setConsentError("");
     try {
       const res = await fetch(url);
       const blob = await res.blob();
@@ -478,56 +474,121 @@ export default function Studio() {
     }
   };
 
+  const requestGeneratedImage = async (targetProjectId: number) => {
+    setGenerationLoading(true);
+    setGenerationError("");
+    setAuthRequired(false);
+    setAfterImage("");
+    try {
+      const requestStartedAt = performance.now();
+      const requestId = workflowRequestId.current || crypto.randomUUID();
+      workflowRequestId.current = requestId;
+      let imgRes: Awaited<ReturnType<typeof generateImage>>;
+      try {
+        imgRes = await generateImage({ project_id: targetProjectId, style, room_type: room }, requestId);
+      } finally {
+        reportClientDuration("frontend.image_generation_request_seconds", requestStartedAt, requestId);
+      }
+      const variant = imgRes?.variants?.[0];
+      const b64 = imgRes?.image_b64 || variant?.image_b64;
+      const mimeType = imgRes?.image_mime_type || variant?.image_mime_type || "image/jpeg";
+      const generatedImage =
+        (b64 ? `data:${mimeType};base64,${b64}` : "") ||
+        imgRes?.image_url ||
+        variant?.image_url ||
+        "";
+
+      if (!imgRes?.success || !generatedImage) {
+        setGenerationError(
+          imgRes?.error ||
+            variant?.error ||
+            "The image service did not return a redesigned room. Please try again."
+        );
+      } else if (generatedImage === preview) {
+        setGenerationError("The image service returned the original photo instead of a redesign.");
+      } else {
+        setAfterImage(generatedImage);
+      }
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401) {
+        setAuthRequired(true);
+        setGenerationError("Your sign-in has expired. Sign in again, then retry image generation.");
+      } else {
+        setGenerationError(apiError(err));
+      }
+    } finally {
+      setGenerationLoading(false);
+    }
+  };
+
   const next = async () => {
     if (step < 4) {
       setStep(step + 1);
       return;
     }
+    if (!localStorage.getItem("house_muse_token")) {
+      setAuthRequired(true);
+      setErrorMsg("Sign in or create an account to analyse and save your room design.");
+      return;
+    }
+    if (file && !imageProcessingConsent) {
+      setConsentError("Please confirm before your room photo is sent to the external image-generation service.");
+      return;
+    }
+    setAuthRequired(false);
     setLoading(true);
+    workflowRequestId.current = crypto.randomUUID();
+    workflowStartedAt.current = performance.now();
     setErrorMsg("");
+    setGenerationError("");
+    setConsentError("");
+    setLoadingStage("analysis");
     try {
-      const res = await analyse({
-        room_type: room as any,
-        length: Number(dimensions.length) * 0.3048,
-        width: Number(dimensions.width) * 0.3048,
-        height: Number(dimensions.height) * 0.3048,
-        styles: [style as any],
-        budget: Number(budget),
-        scope: scope as any,
-        num_rooms: 1,
-        harmony: "analogous",
-        save: true,
-        image: file || undefined,
-      });
+      const analysisStartedAt = performance.now();
+      let res: Awaited<ReturnType<typeof analyse>>;
+      try {
+        res = await analyse({
+          room_type: room as any,
+          length: Number(dimensions.length) * 0.3048,
+          width: Number(dimensions.width) * 0.3048,
+          height: Number(dimensions.height) * 0.3048,
+          styles: [style as any],
+          budget: Number(budget),
+          scope: scope as any,
+          num_rooms: 1,
+          harmony: "analogous",
+          save: true,
+          image: file || undefined,
+        }, workflowRequestId.current);
+      } finally {
+        reportClientDuration("frontend.room_analysis_request_seconds", analysisStartedAt, workflowRequestId.current || undefined);
+      }
       setResultData(res?.result || null);
       const currentProjId = res?.project?.id;
       if (currentProjId) {
         setProjectId(currentProjId);
       }
+      if (!currentProjId) {
+        throw new Error("The room analysis completed without saving a project. Please try again.");
+      }
       if (res?.project?.history) {
         setRefineHistory(res.project.history);
-      }
-      if (res?.project?.generated_image_url) {
-        setAfterImage(res.project.generated_image_url);
       }
       if (!preview && res?.project?.source_image) {
         setPreview(res.project.source_image);
       }
-      try {
-        const imgRes = await generateImage({ project_id: currentProjId, style, room_type: room });
-        const b64 = imgRes?.image_b64 || imgRes?.variants?.[0]?.image_b64;
-        const fullUrl =
-          (b64 ? `data:image/jpeg;base64,${b64}` : "") ||
-          imgRes?.image_url ||
-          imgRes?.variants?.[0]?.image_url ||
-          "";
-        if (fullUrl) setAfterImage(fullUrl);
-      } catch {
-        /* fallback to curated atmospheric photography */
-      }
+      setLoadingStage("generation");
+      await requestGeneratedImage(currentProjId);
       setDone(true);
     } catch (err) {
-      setErrorMsg(apiError(err));
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401) {
+        setAuthRequired(true);
+        setErrorMsg("Your sign-in is missing or has expired. Sign in, then try the room analysis again.");
+      } else {
+        setErrorMsg(err instanceof Error ? err.message : apiError(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -535,6 +596,7 @@ export default function Studio() {
 
   const retry = () => {
     setErrorMsg("");
+    void next();
   };
 
   const reset = () => {
@@ -544,12 +606,18 @@ export default function Studio() {
     setPreview("");
     setResultData(null);
     setAfterImage("");
+    setGenerationError("");
     setErrorMsg("");
+    setAuthRequired(false);
+    setImageProcessingConsent(false);
+    setConsentError("");
     setExpandedCategories({});
     setActiveItems(null);
     setActiveMarkerId(null);
     setActiveAltKey(null);
     setProjectId(null);
+    workflowStartedAt.current = null;
+    workflowRequestId.current = null;
     setRefineHistory([]);
     setRefineInput("");
     setRefining(false);
@@ -569,7 +637,14 @@ export default function Studio() {
     setRefining(true);
     setRefineError("");
     try {
-      const res = await refineImage({ project_id: projectId, instruction: prompt });
+      const requestStartedAt = performance.now();
+      const requestId = crypto.randomUUID();
+      let res: Awaited<ReturnType<typeof refineImage>>;
+      try {
+        res = await refineImage({ project_id: projectId, instruction: prompt }, requestId);
+      } finally {
+        reportClientDuration("frontend.image_refinement_request_seconds", requestStartedAt, requestId);
+      }
       if (res.success) {
         const latestImg =
           (res.image_b64 ? `data:image/jpeg;base64,${res.image_b64}` : "") ||
@@ -675,6 +750,16 @@ export default function Studio() {
           <span className="eyebrow section-label text-[#A85832]">Spatial Analysis Paused</span>
           <h1 className="headline-serif text-espresso text-3xl my-3">That didn't go through.</h1>
           <p className="text-sm text-[#655E57] mb-6 leading-relaxed">{errorMsg}</p>
+          {authRequired && (
+            <div className="flex flex-wrap justify-center gap-3 mb-5">
+              <a className="button secondary" href="/auth?mode=login" target="_blank" rel="noreferrer">
+                Sign In in a New Tab
+              </a>
+              <a className="button secondary" href="/auth?mode=register" target="_blank" rel="noreferrer">
+                Create Account
+              </a>
+            </div>
+          )}
           <button className="button primary inline-flex items-center gap-2" onClick={retry}>
             <RotateCcw size={15} /> Try Again
           </button>
@@ -694,16 +779,18 @@ export default function Studio() {
             </div>
           </div>
           <h1 className="headline-serif text-espresso text-3xl md:text-5xl mt-5 mb-3">
-            Reading the room.
+            {loadingStage === "analysis" ? "Reading the room." : "Reimagining your room."}
           </h1>
           <p className="text-sm text-[#655E57] max-w-md mx-auto leading-relaxed mb-6">
-            Mapping light axis, proportion, material tactile depth, and catalog allocation into a considered direction.
+            {loadingStage === "analysis"
+              ? "Mapping light, proportions, materials, and catalog allocation into a considered direction."
+              : `Applying the ${chosenStyle} style to your photo while preserving the room's layout and architectural openings.`}
           </p>
           <div className="editorial-pulse-line">
             <span />
           </div>
           <small className="text-xs text-[#8A7E72] mt-4 block">
-            Spatial Analysis in progress · Hand-crafting allocation
+            {loadingStage === "analysis" ? "Spatial analysis in progress" : "Image generation in progress"}
           </small>
         </div>
       </main>
@@ -775,31 +862,78 @@ export default function Studio() {
             <div className="arch-grid-crosshair bottom-left" aria-hidden="true">+</div>
             <div className="arch-grid-crosshair bottom-right" aria-hidden="true">+</div>
 
-            <div
-              className="image-panel-backdrop"
-              style={{ backgroundImage: `url(${resolvedDirectionImage})` }}
-              aria-hidden="true"
-            />
-            <img
-              className="image-panel-main"
-              src={resolvedDirectionImage}
-              alt="Generated interior direction"
-            />
+            {afterImage ? (
+              <>
+                <div
+                  className="image-panel-backdrop"
+                  style={{ backgroundImage: `url(${afterImage})` }}
+                  aria-hidden="true"
+                />
+                <img
+                  className="image-panel-main"
+                  src={afterImage}
+                  alt="Generated interior direction"
+                  onLoad={() => {
+                    const startedAt = workflowStartedAt.current;
+                    if (startedAt !== null) {
+                      workflowStartedAt.current = null;
+                      reportClientDuration("frontend.photo_to_result_seconds", startedAt, workflowRequestId.current || undefined);
+                    }
+                  }}
+                />
+              </>
+            ) : generationLoading ? (
+              <div className="image-placeholder generated-image-placeholder" role="status" aria-live="polite">
+                <Loader2 size={28} className="refine-spin-icon" />
+                <span>Generating your {chosenStyle} redesign…</span>
+              </div>
+            ) : (
+              <div className="image-placeholder generated-image-placeholder" role="status">
+                <ImagePlus size={28} />
+                <span>Generated image unavailable</span>
+                {generationError && <p className="generation-error">{generationError}</p>}
+                {authRequired && (
+                  <div className="flex flex-wrap justify-center gap-2 mt-3">
+                    <a className="button secondary" href="/auth?mode=login" target="_blank" rel="noreferrer">
+                      Sign In
+                    </a>
+                    <a className="button secondary" href="/auth?mode=register" target="_blank" rel="noreferrer">
+                      Register
+                    </a>
+                  </div>
+                )}
+                {generationError && projectId && (
+                  <button
+                    type="button"
+                    className="button primary inline-flex items-center gap-2 mt-3"
+                    onClick={() => {
+                      workflowRequestId.current = crypto.randomUUID();
+                      workflowStartedAt.current = performance.now();
+                      void requestGeneratedImage(projectId);
+                    }}
+                  >
+                    <RotateCcw size={15} /> Try Again
+                  </button>
+                )}
+              </div>
+            )}
             <span className="arch-badge-olive result-badge">
               02 / DIRECTION: {chosenStyle?.toUpperCase()}
             </span>
 
-            <button
-              type="button"
-              className="floating-expand-btn"
-              aria-label="Expand generated room"
-              onClick={() => openFullResolutionImage(resolvedDirectionImage)}
-            >
-              <Maximize2 size={15} />
-            </button>
+            {afterImage && (
+              <button
+                type="button"
+                className="floating-expand-btn"
+                aria-label="Expand generated room"
+                onClick={() => openFullResolutionImage(afterImage)}
+              >
+                <Maximize2 size={15} />
+              </button>
+            )}
 
             {/* Interactive Pins */}
-            {ROOM_MARKERS.map((marker) => {
+            {afterImage && ROOM_MARKERS.map((marker) => {
               const item = currentItemsMap[marker.category]?.[marker.itemIndex] || currentItemsMap[marker.category]?.[0];
               if (!item) return null;
               const isActive = activeMarkerId === marker.id;
@@ -1323,6 +1457,8 @@ export default function Studio() {
                     onClick={() => {
                       setFile(null);
                       setPreview("");
+                      setImageProcessingConsent(false);
+                      setConsentError("");
                     }}
                   >
                     Remove
@@ -1479,6 +1615,26 @@ export default function Studio() {
                   <p>You can revisit the catalog breakdown, trade alternatives, and render new variations anytime.</p>
                 </div>
               </div>
+              {file && (
+                <label className="save-note">
+                  <input
+                    type="checkbox"
+                    checked={imageProcessingConsent}
+                    onChange={(event) => {
+                      setImageProcessingConsent(event.target.checked);
+                      setConsentError("");
+                    }}
+                  />
+                  <div>
+                    <b>External image-generation consent</b>
+                    <p>
+                      To create the redesign, your room photo will be sent to the configured Hugging Face
+                      service. Do not continue with photos you do not want processed by that external provider.
+                    </p>
+                    {consentError && <p className="generation-error" role="alert">{consentError}</p>}
+                  </div>
+                </label>
+              )}
             </div>
           )}
 

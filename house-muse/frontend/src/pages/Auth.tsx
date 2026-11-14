@@ -13,8 +13,14 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 export default function Auth() {
   const [location, navigate] = useLocation();
   const [isConfirmRoute, confirmParams] = useRoute("/reset-password/:uid/:token");
-  const params = new URLSearchParams(location.split("?")[1] || "");
-  const [mode, setMode] = useState(isConfirmRoute ? "confirm" : params.get("mode") || "login");
+  const requestedMode = new URLSearchParams(window.location.search).get("mode");
+  const [mode, setMode] = useState(
+    isConfirmRoute
+      ? "confirm"
+      : requestedMode === "register" || requestedMode === "forgot"
+        ? requestedMode
+        : "login"
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);

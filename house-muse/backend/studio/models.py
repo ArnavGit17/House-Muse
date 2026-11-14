@@ -32,7 +32,7 @@ class Project(models.Model):
     harmony = models.CharField(max_length=30, default="analogous")
 
     source_image = models.ImageField(upload_to="projects/source/", blank=True, null=True)
-    generated_image_url = models.URLField(blank=True, null=True)
+    generated_image_url = models.TextField(blank=True, null=True)
 
     result = models.JSONField(blank=True, null=True)  # raw response from ml/'s /api/analyse
 

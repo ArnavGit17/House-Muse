@@ -1,9 +1,8 @@
 """
 modules/image_generator.py
-Primary  : Pollinations.AI  — completely free, no API key needed
-Fallback : Stability AI     — free 25 credits/month (optional)
-                              get key at platform.stability.ai
-                              add STABILITY_API_KEY=sk-xxx to backend/.env
+Photo redesign : Hugging Face img2img — requires a configured Space; no text-only fallback
+Text-only      : Pollinations.AI, then optional Stability AI fallback
+                 Stability requires STABILITY_API_KEY in the ML service environment
 """
 
 import os
@@ -139,9 +138,9 @@ def generate_room_image(
     room_type: str = "living_room",
 ) -> dict:
     """
-    1. Try Hugging Face Space (SDXL + ControlNet + LoRA) if image_input and HF_SPACE_ID are available
-    2. Try Pollinations.AI first  — free, no key, good quality
-    3. Fall back to Stability AI  — free 25 credits/month, needs STABILITY_API_KEY
+    With an input photo, use Hugging Face's img2img refinement endpoint and fail
+    clearly if it is unavailable. Text-to-image providers cannot preserve the
+    uploaded room's architecture and are only used when there is no input photo.
     """
     try:
         from modules.caption_engine import inject_room_furniture_into_prompt
@@ -149,16 +148,41 @@ def generate_room_image(
     except Exception:
         pass
 
-    if image_input and HF_SPACE_ID:
+    if image_input:
+        if not HF_SPACE_ID:
+            return {
+                "success": False,
+                "image_url": None,
+                "image_b64": None,
+                "error": "Photo-based redesign is unavailable because HF_SPACE_ID is not configured.",
+            }
+
         try:
-            from modules.hf_space_client import call_hf_space_redesign
-            print(f"[Generator] Calling HF Space '{HF_SPACE_ID}' with input image...")
-            hf_res = call_hf_space_redesign(
+            from modules.hf_space_client import call_hf_space_refine
+            preservation_prompt = (
+                "Preserve the exact original camera viewpoint, room proportions, wall and ceiling geometry, "
+                "and the position, shape, and size of every existing window, door, and opening. "
+                "Do not add, remove, cover, resize, or relocate architectural features. "
+                "Change only furniture, finishes, lighting, textiles, and decor."
+            )
+            preservation_negative = (
+                "different camera angle, changed room proportions, moved or missing window, "
+                "new or removed door, blocked opening, changed wall layout"
+            )
+            positive_prompt = f"{positive_prompt}, {preservation_prompt}"
+            negative_prompt = f"{negative_prompt}, {preservation_negative}" if negative_prompt else preservation_negative
+            hf_res = call_hf_space_refine(
                 space_id=HF_SPACE_ID,
                 image_input=image_input,
+                original_image_input=image_input,
                 style=style,
+                instruction=preservation_prompt,
                 prompt=positive_prompt,
                 negative_prompt=negative_prompt,
+                strength=0.55,
+                controlnet_scale=1.0,
+                lora_scale=0.8,
+                num_inference_steps=30,
                 hf_token=HF_API_TOKEN,
             )
             if hf_res.get("success"):
@@ -166,13 +190,24 @@ def generate_room_image(
                     "success":    True,
                     "image_url":  None,
                     "image_b64":  hf_res.get("image_b64"),
+                    "image_mime_type": hf_res.get("image_mime_type"),
                     "image_path": hf_res.get("image_path"),
                     "prompt":     positive_prompt,
                     "error":      None,
                 }
-            print(f"[Generator] HF Space failed: {hf_res.get('error')}. Falling back to Pollinations.AI...")
+            return {
+                "success": False,
+                "image_url": None,
+                "image_b64": None,
+                "error": hf_res.get("error") or "Hugging Face image-to-image generation failed.",
+            }
         except Exception as e:
-            print(f"[Generator] HF Space exception: {e}. Falling back to Pollinations.AI...")
+            return {
+                "success": False,
+                "image_url": None,
+                "image_b64": None,
+                "error": f"Hugging Face image-to-image generation failed: {e}",
+            }
 
     print("[Generator] Trying Pollinations.AI ...")
     result = _generate_via_pollinations(positive_prompt, negative_prompt)
