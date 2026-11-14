@@ -81,7 +81,7 @@ The Studio is a four-step wizard: upload, room details, style, budget.
 
 | Step 1: Upload | Step 2: Room details | Step 4: Budget |
 |:---:|:---:|:---:|
-| <img src="docs/images/room-upload-interface.jpg" alt="Studio step 1: drag-and-drop room photo upload with sample rooms" width="300"> | <img src="docs/images/room-details-interface.jpg" alt="Studio step 2: room length, width, ceiling height, room type and project scope" width="300"> | <img src="docs/images/budget-interface.jpg" alt="Studio step 4: total budget slider in INR" width="300"> |
+| <img src="Images/room-upload-interface.jpg" alt="Studio step 1: drag-and-drop room photo upload with sample rooms" width="300"> | <img src="Images/room-details-interface.jpg" alt="Studio step 2: room length, width, ceiling height, room type and project scope" width="300"> | <img src="Images/budget-interface.jpg" alt="Studio step 4: total budget slider in INR" width="300"> |
 | Photo upload, with built-in sample rooms to try. | Dimensions in feet, six room types, three project scopes. | Total INR allocation that anchors catalogue recommendations. |
 
 *Screenshots cropped from the project report. The style-selection step (step 3) is not shown here.*
@@ -91,7 +91,7 @@ The Studio is a four-step wizard: upload, room details, style, budget.
 The results view pairs the original photo (with numbered item markers) with the generated redesign and a live category breakdown. Each line item can be expanded to compare price-tier alternatives.
 
 <p align="center">
-  <img src="docs/images/house-muse-victorian-bedroom-result.jpg" alt="Results view for a bedroom redesigned in the Victorian style, with donut chart and budget line items" width="820">
+  <img src="Images/house-muse-victorian-bedroom-result.jpg" alt="Results view for a bedroom redesigned in the Victorian style, with donut chart and budget line items" width="820">
   <br>
   <sub>Bedroom redesigned in the Victorian style, with a seven-category budget breakdown (total ₹1,90,000 in this run).</sub>
 </p>
@@ -99,7 +99,7 @@ The results view pairs the original photo (with numbered item markers) with the 
 ### One pipeline, nine styles
 
 <p align="center">
-  <img src="docs/images/room-redesign-nine-styles.jpg" alt="Grid of input room photos beside generated outputs for nine interior design styles" width="780">
+  <img src="Images/room-redesign-nine-styles.jpg" alt="Grid of input room photos beside generated outputs for nine interior design styles" width="780">
   <br>
   <sub>Input photo versus generated output for each of the nine supported styles. Different styles were run on different source photos, so this figure shows range of output, not a single-room style comparison. Taken from the project report's qualitative evaluation.</sub>
 </p>
@@ -635,7 +635,7 @@ Compared at 512 × 512 px, with depth estimated by `LiheYoung/depth-anything-sma
 - Neither is an accuracy percentage. They measure different things and do not always agree: Industrial had the lowest edge SSIM but a depth correlation of 0.782.
 
 <p align="center">
-  <img src="docs/images/structural-preservation.png" alt="Bar chart of Canny-edge SSIM and depth correlation for each of nine styles" width="860">
+  <img src="Images/structural-preservation.png" alt="Bar chart of Canny-edge SSIM and depth correlation for each of nine styles" width="860">
   <br>
   <sub>Per-style edge SSIM and depth correlation (n = 9). From the project report.</sub>
 </p>
@@ -654,7 +654,7 @@ CLIP similarity is a relative score that depends on the model and prompt wording
 
 | Similarity matrix | Per-style similarity |
 |:---:|:---:|
-| <img src="docs/images/clip-style-similarity-matrix.png" alt="9 by 9 CLIP style similarity matrix with top-1 predictions marked" width="430"> | <img src="docs/images/clip-style-alignment.png" alt="Bar chart of CLIP similarity per style with top-1 matches highlighted" width="430"> |
+| <img src="Images/clip-style-similarity-matrix.png" alt="9 by 9 CLIP style similarity matrix with top-1 predictions marked" width="430"> | <img src="Images/clip-style-alignment.png" alt="Bar chart of CLIP similarity per style with top-1 matches highlighted" width="430"> |
 
 ### Object detector comparison (experiment)
 
@@ -665,7 +665,7 @@ Across the nine generated outputs, pretrained COCO **YOLOv8m** produced about **
 - YOLO-World v2 is **not** part of the application code; the running service uses YOLOv8 only.
 
 <p align="center">
-  <img src="docs/images/object-detector-comparison.png" alt="Charts comparing YOLOv8m and YOLO-World v2 detection counts and mean confidence per object class" width="860">
+  <img src="Images/object-detector-comparison.png" alt="Charts comparing YOLOv8m and YOLO-World v2 detection counts and mean confidence per object class" width="860">
   <br>
   <sub>Detection counts and mean confidence per class across nine outputs (the chart labels the second model "YOLOv8s-World v2"). From the project report.</sub>
 </p>
