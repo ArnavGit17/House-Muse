@@ -797,7 +797,7 @@ There is no formal contribution process. Issues and pull requests are welcome; f
 
 ## License
 
-No license file is currently included in this repository, so all rights are reserved by default and the code is not licensed for reuse. (The frontend `package.json` declares `"license": "MIT"`, but no `LICENSE` file backs that claim.) A license will be added by the repository owner if the project is intended to be open source.
+No license file is currently included in this repository, so all rights are reserved by default and the code is not licensed for reuse.
 
 ---
 
