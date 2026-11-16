@@ -17,7 +17,7 @@
 [![Stable Diffusion XL](https://img.shields.io/badge/SDXL-ControlNet_%2B_LoRA-FF6F00?style=flat-square)](https://huggingface.co/docs/diffusers/)
 [![Hugging Face Spaces](https://img.shields.io/badge/Hugging_Face-Spaces-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/spaces)
 
-<img src="docs/images/house-muse-contemporary-indian-result.jpg" alt="House Muse results view: the original living room, the Contemporary Indian redesign, and an interactive budget breakdown" width="900">
+<img src="Images/house-muse-contemporary-indian-result.jpg" alt="House Muse results view: the original living room, the Contemporary Indian redesign, and an interactive budget breakdown" width="900">
 
 <sub>Results view from the House Muse web app: measured "before" photo with item markers, the generated Contemporary Indian redesign, and the catalogue-backed budget breakdown. Screenshot taken from the project report.</sub>
 
